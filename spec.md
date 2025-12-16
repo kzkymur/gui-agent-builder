@@ -60,6 +60,18 @@
 - **Error Handling**
   - The backend returns proper HTTP error status codes for any LLM or MCP failure.
 
+## Frontend Layout
+
+- `frontend/`
+  - `index.html` – app mount and base styles.
+  - `src/` – React code (TypeScript).
+    - `main.tsx` – app bootstrap.
+    - `App.tsx` – shell with Graph UI placeholder.
+    - `index.css` – global styles.
+  - `vite.config.ts` – Vite config for React/TS.
+  - `tsconfig*.json` – TypeScript configs.
+  - `package.json` – scripts: `dev`, `build`, `preview`, `typecheck`.
+
 ## Node Types
 
 | Type       | Description                                                                                                              |

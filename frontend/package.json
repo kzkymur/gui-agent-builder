@@ -1,0 +1,36 @@
+{
+  "name": "llm-flow-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reactflow": "^11.10.1",
+    "@radix-ui/react-scroll-area": "^1.0.5",
+    "@radix-ui/themes": "^3.0.4"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kzkymur/gui-agent-builder.git"
+  },
+  "author": "kzkymur",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kzkymur/gui-agent-builder/issues"
+  },
+  "homepage": "https://github.com/kzkymur/gui-agent-builder#readme"
+}
