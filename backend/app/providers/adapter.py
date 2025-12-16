@@ -47,7 +47,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             lc = lc.bind_tools(tools)
             cb.logs.append({
-                "event": "mcp_tools_bound",
+                "event": "tools_bound",
                 "tools": [
                     {"name": getattr(t, "name", "tool"), "server": getattr(t, "_mcp_server", None)}
                     for t in tools
@@ -88,7 +88,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
         tcs = getattr(res, "tool_calls", None) or []
         if tcs:
             cb.logs.append({
-                "event": "model_tool_calls",
+                "event": "model_tool_calls_detected",
                 "calls": [
                     {"name": tc.get("name"), "args": tc.get("args"), "id": tc.get("id")}
                     for tc in tcs
@@ -118,17 +118,17 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
                     try:
                         server = getattr(tool_obj, "_mcp_server", None)
                         start = time.perf_counter()
-                        cb.logs.append({"event": "mcp_tool_exec_start", "name": name, "server": server, "args": args})
+                        cb.logs.append({"event": "tool_execution_started", "name": name, "server": server, "args": args})
                         if hasattr(tool_obj, "ainvoke"):
                             result = await tool_obj.ainvoke(args)
                         else:
                             result = tool_obj.invoke(args)
                         content = str(result)
                         duration_ms = int((time.perf_counter() - start) * 1000)
-                        cb.logs.append({"event": "mcp_tool_exec_end", "name": name, "server": server, "duration_ms": duration_ms, "result": content[:2000]})
+                        cb.logs.append({"event": "tool_execution_finished", "name": name, "server": server, "duration_ms": duration_ms, "result": content[:2000]})
                     except Exception as e:
                         content = f"Tool '{name}' failed: {e}"
-                        cb.logs.append({"event": "mcp_tool_exec_error", "name": name, "server": server, "error": str(e)})
+                        cb.logs.append({"event": "tool_execution_error", "name": name, "server": server, "error": str(e)})
                 tool_msgs.append(ToolMessage(tool_call_id=call_id, content=content))
             messages = messages + [res] + tool_msgs
             res = await lc.ainvoke(messages, config={"callbacks": [cb]})
@@ -148,7 +148,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
             }
             # Let the model emit a final structured result, using all prior context
             bound = lc.bind(tools=[tool], tool_choice={"type": "tool", "name": "output"})
-            cb.logs.append({"event": "structured_output_finalize", "provider": provider})
+            cb.logs.append({"event": "structured_output_requested", "provider": provider})
             res2 = await bound.ainvoke(messages + [res], config={"callbacks": [cb]})
             tool_calls = getattr(res2, "tool_calls", None) or []
             if tool_calls:

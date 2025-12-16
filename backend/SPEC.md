@@ -70,6 +70,15 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
 - Accept and return `X-Request-Id` when provided.
 - Log: method, path, status, provider, model, duration (ms). No PII in logs.
 
+### Log Events (backend-adapter)
+- `model_request_started` — LangChain begins a model call (may be followed by tool calls).
+- `model_response_received` — a model message is received (not necessarily final).
+- `model_request_error` — the model call errored.
+- `tools_bound` — MCP tools successfully bound to the model with metadata.
+- `model_tool_calls_detected` — the model requested tool calls; includes names/args.
+- `tool_execution_started` | `tool_execution_finished` | `tool_execution_error` — execution lifecycle per tool.
+- `structured_output_requested` — a final structured-output pass is initiated.
+
 ## Security
 - Do not persist API keys. If headers are used, pass through only to the target provider.
 - CORS: allow the local frontend origin only during development.

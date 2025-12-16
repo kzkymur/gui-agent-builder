@@ -23,22 +23,22 @@ class BufferingHandler(BaseCallbackHandler):
 
     # Sync callbacks
     def on_llm_start(self, serialized, prompts, **kwargs):  # type: ignore[override]
-        self._append("llm_start", serialized=serialized, prompts=prompts)
+        self._append("model_request_started", serialized=serialized, prompts=prompts)
 
     def on_llm_end(self, response, **kwargs):  # type: ignore[override]
-        self._append("llm_end", response=str(response))
+        self._append("model_response_received", response=str(response))
 
     def on_llm_error(self, error, **kwargs):  # type: ignore[override]
-        self._append("llm_error", error=str(error))
+        self._append("model_request_error", error=str(error))
 
     def on_chat_model_start(self, serialized, messages, **kwargs):  # type: ignore[override]
-        self._append("chat_start", serialized=serialized, messages=str(messages))
+        self._append("model_request_started", serialized=serialized, messages=str(messages), kind="chat")
 
     def on_chat_model_end(self, response, **kwargs):  # type: ignore[override]
-        self._append("chat_end", response=str(response))
+        self._append("model_response_received", response=str(response), kind="chat")
 
     def on_chat_model_error(self, error, **kwargs):  # type: ignore[override]
-        self._append("chat_error", error=str(error))
+        self._append("model_request_error", error=str(error), kind="chat")
 
     # Async variants for newer LangChain
     async def ahandle_event(self, *args, **kwargs):  # type: ignore[override]
@@ -64,13 +64,13 @@ class BufferingHandler(BaseCallbackHandler):
 
     # Tool callback hooks (LangChain tools)
     def on_tool_start(self, serialized, input_str, **kwargs):  # type: ignore[override]
-        self._append("tool_start", serialized=serialized, input=input_str)
+        self._append("tool_execution_started", serialized=serialized, input=input_str)
 
     def on_tool_end(self, output, **kwargs):  # type: ignore[override]
-        self._append("tool_end", output=str(output))
+        self._append("tool_execution_finished", output=str(output))
 
     def on_tool_error(self, error, **kwargs):  # type: ignore[override]
-        self._append("tool_error", error=str(error))
+        self._append("tool_execution_error", error=str(error))
 
     async def aon_tool_start(self, serialized, input_str, **kwargs):  # type: ignore[override]
         self.on_tool_start(serialized, input_str, **kwargs)
