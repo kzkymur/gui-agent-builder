@@ -26,10 +26,13 @@ async def abuild_mcp_tools(mcp: Optional[Dict[str, Any]]) -> List[Any]:
         if not isinstance(s, dict):
             continue
         name = s.get("name")
-        transport = s.get("transport")
-        if not name or not transport:
+        transport = s.get("transport") or "http"
+        if not name:
             continue
+        if transport != "http":
+            raise ValueError("mcp: only 'http' transport is supported in this build")
         conn = {k: v for k, v in s.items() if k != "name"}
+        conn["transport"] = transport
         connections[name] = conn
 
     if not connections:
@@ -45,7 +48,7 @@ async def abuild_mcp_tools(mcp: Optional[Dict[str, Any]]) -> List[Any]:
     try:
         from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore
     except Exception as e:  # pragma: no cover
-        raise RuntimeError("mcp: langchain-mcp-adapters is not installed") from e
+        raise RuntimeError("langchain-mcp-adapters is required") from e
 
     try:
         client = MultiServerMCPClient(
@@ -83,14 +86,3 @@ async def abuild_mcp_tools(mcp: Optional[Dict[str, Any]]) -> List[Any]:
         return tools
     except Exception as e:  # pragma: no cover
         raise RuntimeError(f"mcp: failed to load tools: {e}") from e
-
-
-def build_mcp_tools(mcp: Optional[Dict[str, Any]]) -> List[Any]:
-    """Synchronous wrapper for `abuild_mcp_tools` for non-async contexts."""
-    import asyncio
-
-    try:
-        return asyncio.run(abuild_mcp_tools(mcp))
-    except RuntimeError:
-        # Likely called from an active event loop; caller should use the async API
-        raise RuntimeError("mcp: build_mcp_tools used in async context; use abuild_mcp_tools instead")

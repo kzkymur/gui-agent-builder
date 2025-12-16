@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .providers import REGISTRY, list_providers
+from .utils.schema import validate_output_against_schema
+from .utils.errors import to_http
 
 
 class ChatMessage(BaseModel):
-    role: str
+    role: Literal["system", "user", "assistant"]
     content: str
 
 
 class InvokeRequest(BaseModel):
-    provider: str
-    model: str
+    provider: str = Field(min_length=1)
+    model: str = Field(min_length=1)
     messages: List[ChatMessage]
     response_schema: Optional[Dict[str, Any]] = None
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
@@ -133,7 +135,7 @@ async def llm_invoke(
                 combined_logs.extend(result["logs"]) 
             # If a response_schema is present, validate output shape
             if body.response_schema is not None:
-                _validate_output_against_schema(result.get("output"), body.response_schema)
+                validate_output_against_schema(result.get("output"), body.response_schema)
             # Success
             return InvokeResponse(
                 id=result.get("id"),
@@ -166,41 +168,9 @@ async def llm_invoke(
             last_exc = exc
             continue
 
-    # If we got here, retries exhausted
-    if isinstance(last_exc, HTTPException):
-        raise last_exc
-    # Map generic exception to HTTP error with best-effort status
-    status = 500
-    msg = str(last_exc) if last_exc else "Provider invocation failed"
-    sc = getattr(last_exc, "status_code", None) if last_exc else None
-    if isinstance(sc, int):
-        status = sc
-    else:
-        resp = getattr(last_exc, "response", None) if last_exc else None
-        sc2 = getattr(resp, "status_code", None) if resp is not None else None
-        if isinstance(sc2, int):
-            status = sc2
-    code = "provider_bad_request" if 400 <= status < 500 else "upstream_error"
-    raise HTTPException(status_code=status, detail={
-        "error": {"code": code, "message": msg, "details": {"type": last_exc.__class__.__name__ if last_exc else "Unknown"}},
-    })
-
-
-def _extract_schema(schema_like: Dict[str, Any]) -> Dict[str, Any]:
-    if isinstance(schema_like, dict) and "schema" in schema_like and isinstance(schema_like["schema"], dict):
-        return schema_like["schema"]
-    return schema_like
-
-
-def _validate_output_against_schema(output: Any, schema_like: Dict[str, Any]) -> None:
-    # Only validate JSON-like objects
-    from jsonschema import validate, ValidationError
-    schema_obj = _extract_schema(schema_like)
-    try:
-        validate(instance=output, schema=schema_obj)
-    except ValidationError as ve:
-        # Raise to trigger retry behavior up the stack
-        raise ve
+    # If we got here, retries exhausted; normalize and raise
+    status, code, message, details = to_http(last_exc)
+    raise HTTPException(status_code=status, detail={"error": {"code": code, "message": message, "details": details}})
 
 
 if __name__ == "__main__":

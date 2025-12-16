@@ -54,6 +54,13 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
     - `provider` (string)
     - `model` (string)
 
+## Simplifications (2025-12-16)
+
+- Provider Registry flattened: `REGISTRY` now maps `provider_id -> invoke (callable)` only. Capability flags are computed at request time via `provider_capabilities(pid)` to avoid stale import-time checks.
+- Shared error mapping helper: `utils.errors.to_http(exc)` converts arbitrary exceptions (including HTTPException and upstream SDK errors) into `(status, code, message, details)` used consistently by endpoints.
+- Schema utilities extracted: JSON schema helpers moved to `utils.schema` (`extract_schema`, `validate_output_against_schema`).
+- MCP transport: only `http` is supported; when `transport` is omitted, it defaults to `"http"` for simplicity.
+
 ## Errors
 - Unified shape with proper HTTP statuses:
   - Body: `{ "error": { "code": string, "message": string, "details": object|null } }`
