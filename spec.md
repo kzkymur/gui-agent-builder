@@ -29,13 +29,13 @@
 - The backend only forwards calls to external LLM APIs.
 - All state is stored in the frontend’s SQLite WASM database, including:
   - The orchestration graph structure.
-  - Definitions of each LLM node
+- Definitions of each LLM node
     - **Name**
     - **Provider** (Anthropic, OpenAI, DeepSeek, …)
     - **Model**
     - **System prompt**
-    - **JSON schema for responses**
-    - **Output port properties**
+    - **Response JSON Schema** (`responseSchema`)
+    - **Outputs mapped by JSON Pointer** (`outputPointers`)
     - **Target MCP server(s)**
   - Definitions of each MCP server
     - **Name**
@@ -54,9 +54,9 @@
   - A single output port may connect to multiple input ports, enabling fan‑out to multiple LLMs.
   - Clicking a node opens its editable definition in the sidebar.
 - **LLM Response Handling**
-  - Every LLM must return JSON.
-  - Output ports are mapped to keys inside the JSON.  
-    e.g. if an LLM returns `{ "a": 1, "b": 2 }`, each port can select either `a` or `b`.
+  - Every LLM must return JSON that validates against the node’s `responseSchema` (JSON Schema).
+  - Output ports are defined as JSON Pointers (RFC 6901) into that response.  
+    Example: For `{ "a": { "b": 2 } }`, a port may point to `/a/b`.
 - **Error Handling**
   - The backend returns proper HTTP error status codes for any LLM or MCP failure.
 

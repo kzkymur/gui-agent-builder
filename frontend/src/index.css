@@ -7,14 +7,254 @@
   --accent: #6ea8fe;
 }
 
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
-body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; background: var(--bg); color: var(--fg); }
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+  background: var(--bg);
+  color: var(--fg);
+}
 
-.app { min-height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
-.app__header { padding: 12px 16px; border-bottom: 1px solid #222; background: var(--panel); font-weight: 600; }
-.app__main { display: grid; grid-template-columns: 1fr 320px; gap: 0; min-height: 0; }
-.graph-placeholder { display: grid; place-items: center; border-right: 1px solid #222; min-height: 60vh; color: var(--muted); }
-.sidebar { padding: 12px; background: #101012; }
-.app__footer { padding: 10px 16px; border-top: 1px solid #222; background: var(--panel); color: var(--muted); font-size: 12px; }
+.app {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+.app__header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #222;
+  background: var(--panel);
+  font-weight: 600;
+}
+.app__main {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 0;
+  min-height: 0;
+}
+.graph-placeholder {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #222;
+  min-height: 60vh;
+  color: var(--muted);
+}
+.react-flow__renderer {
+  background: #0e0e10;
+}
+.node {
+  position: relative;
+  min-width: 180px;
+  padding: 10px 14px;
+  color: var(--fg);
+  border-radius: 10px;
+  /* Subtle layered border to keep handles visually inside */
+  background: linear-gradient(180deg, #141418, #0f0f12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.node__title {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #cbd5e1;
+}
+.node__body {
+  font-size: 12px;
+  color: #a1a1aa;
+}
+.node__handles {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+.node__handles-left,
+.node__handles-right {
+  display: flex;
+  gap: 6px;
+}
+.node__handles-right {
+  flex-direction: column;
+  align-items: flex-end;
+}
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.kvs {
+  display: grid;
+  gap: 4px;
+}
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.kv span {
+  color: #9ca3af;
+}
+.kv code {
+  color: #d1d5db;
+  background: transparent;
+}
+.editor {
+  display: grid;
+  gap: 10px;
+}
+.section-title {
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa3b2;
+}
+.divider {
+  height: 1px;
+  border: none;
+  background: #1e1e22;
+  margin: 6px 0 8px;
+}
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.field span {
+  color: #cbd5e1;
+}
+.field input,
+.field textarea {
+  width: 100%;
+  background: #0f0f12;
+  border: 1px solid #2a2a2e;
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.field textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.field input::placeholder, .field textarea::placeholder { color: #666a; }
+.field input:focus, .field textarea:focus, .sidebar select:focus, .sidebar button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+.help {
+  color: var(--muted);
+  font-size: 11px;
+}
+.sidebar {
+  padding: 14px;
+  background: #101012;
+  border-left: 1px solid #222;
+  overflow: auto;
+}
+.sidebar select[multiple] {
+  background: #0f0f12;
+  border: 1px solid #2a2a2e;
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 6px;
+  min-height: 96px;
+}
+.sidebar button {
+  background: #1a1a1f;
+  color: #e6e6e6;
+  border: 1px solid #2a2a2e;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.sidebar button:hover { background: #212126; }
+.sidebar button:active { background: #17171b; }
+/* Ensure checkboxes in the sidebar have a consistent fixed size */
+.sidebar input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+.app__footer {
+  padding: 10px 16px;
+  border-top: 1px solid #222;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+}
 
+/* Node type coloring */
+.node--entry {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: linear-gradient(180deg, #0c1424, #0a1020);
+}
+.node--entry .node__title {
+  color: #93c5fd;
+}
+
+.node--llm {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: linear-gradient(180deg, #0d1d14, #0a1711);
+}
+.node--llm .node__title {
+  color: #86efac;
+}
+
+.node--router {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: linear-gradient(180deg, #20170a, #1a1309);
+}
+.node--router .node__title {
+  color: #fcd34d;
+}
+
+.node--mcp {
+  border-color: rgba(168, 85, 247, 0.55);
+  background: linear-gradient(180deg, #1b1222, #160f1d);
+}
+.node--mcp .node__title {
+  color: #d8b4fe;
+}
+
+.node--end {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: linear-gradient(180deg, #241213, #1d0f10);
+}
+.node--end .node__title {
+  color: #fca5a5;
+}
+
+/* Flow-positioned handles (no absolute). Place below content. */
+.node .react-flow__handle {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+  margin: 2px 0;
+}
+
+/* Improve edge attachment contrast on dark backgrounds */
+.react-flow__edge-path,
+.react-flow__connection-path {
+  stroke-width: 2px;
+}
+
+/* Layering: edges above nodes as requested */
+.react-flow__edges {
+  z-index: 20 !important;
+}
+.react-flow__nodes {
+  z-index: 10 !important;
+}
