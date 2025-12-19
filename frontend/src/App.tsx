@@ -2,77 +2,38 @@ import React, { useEffect, useMemo, useState } from "react";
 import "reactflow/dist/style.css";
 import "./index.css";
 import GraphCanvas from "./graph/GraphCanvas";
+import { logGraphSnapshot } from "./engine/graph";
 import type { Edge, Node } from "reactflow";
 import type { LLMData, MCPData, NodeData } from "./types";
 import { initDB, loadGraph, saveGraph } from "./db/sqlite";
 import NodeEditor from "./sidebar/NodeEditor";
+import { backendClient } from "./engine/backendClient";
+import { ignite } from "./engine/runtime";
 
 export default function App() {
-  const initialNodes = useMemo<Node<NodeData>[]>(
-    () => [
-      {
-        id: "entry",
-        type: "entry",
-        position: { x: 80, y: 120 },
-        data: { name: "Entry", inputs: ["user_input"] },
-      },
-      {
-        id: "llm-1",
-        type: "llm",
-        position: { x: 340, y: 100 },
-        data: {
-          name: "Summarizer",
-          provider: "OpenAI",
-          model: "gpt-4o",
-          system: "Summarize input.",
-          inputs: [{ key: "text", description: "User text to summarize" }],
-          outputPointers: ["/result/summary"],
-        } as LLMData,
-      },
-      {
-        id: "router-1",
-        type: "router",
-        position: { x: 620, y: 100 },
-        data: { name: "Route by length", branches: ["short", "long"] },
-      },
-      {
-        id: "end-short",
-        type: "end",
-        position: { x: 860, y: 40 },
-        data: { name: "End (short)" },
-      },
-      {
-        id: "end-long",
-        type: "end",
-        position: { x: 860, y: 180 },
-        data: { name: "End (long)" },
-      },
-      {
-        id: "mcp-1",
-        type: "mcp",
-        position: { x: 80, y: 260 },
-        data: {
-          name: "MCP: tools",
-          url: "http://localhost:9000",
-          token: "",
-        } as MCPData,
-      },
-    ],
-    []
-  );
-
-  const initialEdges = useMemo<Edge[]>(
-    () => [
-      { id: "e1", source: "entry", target: "llm-1", sourceHandle: "out-0", targetHandle: "in-0" },
-      { id: "e2", source: "llm-1", target: "router-1", sourceHandle: "out-0" },
-      { id: "e3", source: "router-1", target: "end-short", sourceHandle: "br-short" },
-      { id: "e4", source: "router-1", target: "end-long", sourceHandle: "br-long" },
-    ],
-    []
-  );
-
-  const [nodes, setNodes] = useState<Node<NodeData>[]>(initialNodes);
-  const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  // Normalize legacy node data shapes to current schema before using/saving
+  const normalizeNodeData = (type: string | undefined, data: any): any => {
+    const d = data ?? {};
+    if (type === 'entry') {
+      // v1: inputs: string[] -> v2: { key, value? }[]
+      if (Array.isArray(d.inputs) && d.inputs.length && typeof d.inputs[0] === 'string') {
+        d.inputs = d.inputs.map((k: string) => ({ key: k, value: '' }));
+      }
+    }
+    if (type === 'llm') {
+      // ensure arrays are arrays; leave empty when missing
+      if (d.inputs && Array.isArray(d.inputs)) {
+        d.inputs = d.inputs.map((i: any) => ({ key: i?.key ?? '', description: i?.description ?? '' }));
+      }
+      if (d.outputPointers && !Array.isArray(d.outputPointers)) {
+        d.outputPointers = [];
+      }
+    }
+    return d;
+  };
+  // Start with an empty canvas; no seeded demo graph.
+  const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
   const [footerValue, setFooterValue] = useState<string>("");
   const [dbReady, setDbReady] = useState(false);
@@ -94,7 +55,7 @@ export default function App() {
             id: n.id,
             type: n.type as any,
             position: { x: n.x, y: n.y },
-            data: n.data as any,
+            data: normalizeNodeData(n.type as any, n.data as any),
           }))
         );
         setEdges(
@@ -106,9 +67,6 @@ export default function App() {
             targetHandle: (e as any).targetHandle ?? undefined,
           }))
         );
-      } else {
-        // Save initial demo graph once so it persists
-        saveToDb(initialNodes, initialEdges);
       }
     })();
     return () => {
@@ -126,7 +84,7 @@ export default function App() {
         type: n.type ?? "default",
         x: n.position.x,
         y: n.position.y,
-        data: n.data,
+        data: normalizeNodeData(n.type, n.data),
       })),
       edgeList.map((e) => ({
         id: e.id,
@@ -162,18 +120,12 @@ export default function App() {
       case "entry":
         return {
           ...base,
-          data: { name: "Entry", inputs: ["user_input"] },
+          data: { name: "Entry", inputs: [{ key: "user_input", value: "" }] },
         } as Node<any>;
       case "llm":
         return {
           ...base,
-          data: {
-            name: "LLM",
-            provider: "OpenAI",
-            model: "gpt-4o",
-            inputs: [{ key: "input", description: "Primary input" }],
-            outputPointers: ["/result"],
-          },
+          data: { name: "LLM" },
         } as Node<any>;
       case "router":
         return {
@@ -226,6 +178,16 @@ export default function App() {
     }
   }, [selected, nodes]);
 
+  // Listen for Entry node 'ignite' events and kick off the engine
+  useEffect(() => {
+    const onIgnite = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
+      ignite(nodes, edges, detail?.entryId ?? null);
+    };
+    window.addEventListener('engine:ignite', onIgnite as EventListener);
+    return () => window.removeEventListener('engine:ignite', onIgnite as EventListener);
+  }, [nodes, edges]);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -263,76 +225,37 @@ export default function App() {
             <option value="end">End</option>
           </select>
           <button onClick={addNode}>Add Node</button>
+          <button onClick={() => logGraphSnapshot(nodes, edges)}>
+            Log Graph
+          </button>
           <button
             onClick={() => {
-              const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
-              const handleLabelFor = (nodeId: string | null | undefined, handleId: string | null | undefined, dir: 'source'|'target') => {
-                if (!nodeId || !handleId) return null;
-                const node = nodeById.get(nodeId);
-                if (!node) return null;
-                const data: any = node.data ?? {};
-                switch (node.type) {
-                  case 'entry': {
-                    // entry source handles: out-<idx> map to inputs[idx]
-                    if (dir === 'source' && handleId.startsWith('out-')) {
-                      const idx = Number(handleId.replace('out-',''));
-                      return Array.isArray(data.inputs) ? data.inputs[idx] ?? null : null;
-                    }
-                    break;
-                  }
-                  case 'llm': {
-                    if (dir === 'target' && handleId.startsWith('in-')) {
-                      const idx = Number(handleId.replace('in-',''));
-                      return Array.isArray(data.inputs) ? data.inputs[idx]?.key ?? null : null;
-                    }
-                    if (dir === 'source' && handleId.startsWith('out-')) {
-                      const idx = Number(handleId.replace('out-',''));
-                      const outs = Array.isArray(data.outputPointers) && data.outputPointers.length > 0 ? data.outputPointers : ['/result'];
-                      return outs[idx] ?? null;
-                    }
-                    break;
-                  }
-                  case 'router': {
-                    // router source handles: br-<branch>
-                    if (dir === 'source' && handleId.startsWith('br-')) {
-                      return handleId.substring(3);
-                    }
-                    break;
-                  }
-                  default:
-                    break;
-                }
-                return null;
-              };
-
-              const payload = {
-                nodes: nodes.map((n) => ({
-                  id: n.id,
-                  type: n.type,
-                  x: n.position.x,
-                  y: n.position.y,
-                  data: n.data,
-                })),
-                edges: edges.map((e) => ({
-                  id: e.id,
-                  from: {
-                    node: e.source,
-                    handleId: (e as any).sourceHandle ?? null,
-                    handleLabel: handleLabelFor(e.source, (e as any).sourceHandle, 'source'),
-                  },
-                  to: {
-                    node: e.target,
-                    handleId: (e as any).targetHandle ?? null,
-                    handleLabel: handleLabelFor(e.target, (e as any).targetHandle, 'target'),
-                  },
-                })),
-              };
-              // Print a stable, readable snapshot of the current graph
-              // eslint-disable-next-line no-console
-              console.log("[LLM-Flow] Graph snapshot", payload);
+              try {
+                const { nodes: nn, edges: ee } = loadGraph();
+                // eslint-disable-next-line no-console
+                console.log("[LLM-Flow] DB rows", { nodes: nn, edges: ee });
+              } catch (e) {
+                // eslint-disable-next-line no-console
+                console.error("[LLM-Flow] Failed to read DB", e);
+              }
             }}
           >
-            Log Graph
+            Log DB
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                // Typed call to backend's health endpoint
+                const res = await backendClient.GET("/health");
+                // eslint-disable-next-line no-console
+                console.log("[LLM-Flow] /health", res.data ?? res.error);
+              } catch (err) {
+                // eslint-disable-next-line no-console
+                console.error("[LLM-Flow] backend call failed", err);
+              }
+            }}
+          >
+            Ping Backend
           </button>
         </div>
       </header>

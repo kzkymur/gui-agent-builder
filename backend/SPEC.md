@@ -54,6 +54,16 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
     - `provider` (string)
     - `model` (string)
 
+## Engine Utilities
+
+- `engine/openapi.py` — Minimal OpenAPI 3.x client (no external deps) to call third‑party APIs from the backend.
+  - Usage:
+    - `from engine.openapi import create_client`
+    - `client = create_client(spec_dict, auth={'bearer': {'default': 'TOKEN'}})`
+    - `resp = client.call_by_id('getPetById', path_params={'petId': 123})`
+    - `data = resp.read()`  # bytes; decode or json‑load as needed
+  - Features: uses `servers[0].url` by default (overridable), path templating `{param}`, query serialization (arrays supported), header/body passthrough, apiKey (header/query) and bearer auth.
+
 ## Simplifications (2025-12-16)
 
 - Provider Registry flattened: `REGISTRY` now maps `provider_id -> invoke (callable)` only. Capability flags are computed at request time via `provider_capabilities(pid)` to avoid stale import-time checks.
@@ -88,3 +98,7 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
   - Swagger UI enabled at `/docs` (default FastAPI docs).
 - Provider adapters: LangChain-backed adapters for real providers (OpenAI, Anthropic, DeepSeek).
 - Dependencies: `fastapi`, `uvicorn[standard]`, `httpx`, `langchain-core`, `langchain-openai`.
+
+## Persistence Contract (frontend-driven)
+- The backend is stateless. The frontend persists the full graph and all node `data` properties to SQLite (WASM) under `nodes.data` as JSON.
+- There must be no backend assumptions about omitted/implicit defaults; clients send explicit values as configured in the UI.

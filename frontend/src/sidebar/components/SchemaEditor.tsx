@@ -1,20 +1,26 @@
 import React from 'react';
 
 export default function SchemaEditor({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
-  const text = typeof value === 'string' ? (value as string) : value ? JSON.stringify(value, null, 2) : '';
+  const [text, setText] = React.useState<string>(
+    typeof value === 'string' ? (value as string) : value ? JSON.stringify(value, null, 2) : ''
+  );
 
+  // Keep local text in sync when external value changes (e.g., after save/reload)
+  React.useEffect(() => {
+    const next = typeof value === 'string' ? (value as string) : value ? JSON.stringify(value, null, 2) : '';
+    setText(next);
+  }, [value]);
+
+  // Validate live without formatting. Formatting (pretty-print) happens on blur only.
   let error: string | undefined;
-  if (typeof value === 'string') {
-    const raw = value as string;
-    if (raw.trim()) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed !== 'object') {
-          error = 'Schema must be a JSON object.';
-        }
-      } catch (e: any) {
-        error = e?.message || 'Invalid JSON';
+  if (text.trim()) {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed !== 'object') {
+        error = 'Schema must be a JSON object.';
       }
+    } catch (e: any) {
+      error = e?.message || 'Invalid JSON';
     }
   }
 
@@ -28,11 +34,25 @@ export default function SchemaEditor({ value, onChange }: { value: unknown; onCh
         value={text}
         onChange={(e) => {
           const next = e.target.value;
+          setText(next);
+          // Persist raw text while typing so it is saved, but do not pretty-print yet
+          onChange(next);
+        }}
+        onBlur={() => {
+          // On blur, if valid JSON object, store as parsed object which will pretty-print on re-render
           try {
-            const parsed = next.trim() ? JSON.parse(next) : undefined;
-            onChange(parsed);
+            const parsed = text.trim() ? JSON.parse(text) : undefined;
+            if (parsed === undefined) {
+              onChange(undefined);
+            } else if (parsed && typeof parsed === 'object') {
+              onChange(parsed);
+            } else {
+              // Not an object; keep raw text
+              onChange(text);
+            }
           } catch {
-            onChange(next);
+            // Keep raw text if invalid
+            onChange(text);
           }
         }}
         aria-invalid={Boolean(error).toString()}
@@ -42,4 +62,3 @@ export default function SchemaEditor({ value, onChange }: { value: unknown; onCh
     </label>
   );
 }
-

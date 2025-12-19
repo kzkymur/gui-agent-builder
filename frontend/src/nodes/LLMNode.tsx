@@ -4,14 +4,8 @@ import type { RFNodeProps, LLMData } from "../types";
 import NodeChrome from "./NodeChrome";
 
 export default function LLMNode({ data }: RFNodeProps<LLMData>) {
-  const outs =
-    data.outputPointers && data.outputPointers.length > 0
-      ? data.outputPointers
-      : ["/result"];
-  const ins =
-    data.inputs && data.inputs.length > 0
-      ? data.inputs
-      : [{ key: "input", description: "" }];
+  const outs = Array.isArray(data.outputPointers) ? data.outputPointers : [];
+  const ins = Array.isArray(data.inputs) ? data.inputs : [];
   return (
     <NodeChrome
       title={data.name ?? "LLM"}
@@ -19,13 +13,11 @@ export default function LLMNode({ data }: RFNodeProps<LLMData>) {
       handles={
         <>
           <div className="node__handles-left">
-            {ins.map((_, idx) => (
-              <Handle
-                key={`in-${idx}`}
-                id={`in-${idx}`}
-                type="target"
-                position={Position.Left}
-              />
+            {ins.map((inp, idx) => (
+              <div key={`in-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Handle id={`in-${idx}`} type="target" position={Position.Left} />
+                <span title={inp.description} style={{ fontSize: 11, color: '#9ca3af' }}>{inp.key || `in-${idx}`}</span>
+              </div>
             ))}
           </div>
           <div className="node__handles-right">
@@ -53,10 +45,6 @@ export default function LLMNode({ data }: RFNodeProps<LLMData>) {
         <div className="kv">
           <span>Schema</span>
           <code>{data.responseSchema ? "defined" : "—"}</code>
-        </div>
-        <div className="kv">
-          <span>Inputs</span>
-          <code>{ins.map((i) => i.key || "input").join(", ")}</code>
         </div>
       </div>
     </NodeChrome>

@@ -2,7 +2,8 @@ import type { NodeProps } from 'reactflow';
 
 export type EntryData = {
   name: string;
-  inputs: string[];
+  // Entry node collects user-provided inputs: key + value
+  inputs: { key: string; value?: string }[];
 };
 
 // One input handle is composed by two properties: key and description.

@@ -29,7 +29,7 @@
 - The backend only forwards calls to external LLM APIs.
 - All state is stored in the frontend’s SQLite WASM database, including:
   - The orchestration graph structure.
-- Definitions of each LLM node
+  - Definitions of each LLM node (stored verbatim as JSON in `nodes.data`)
     - **Name**
     - **Provider** (Anthropic, OpenAI, DeepSeek, …)
     - **Model**
@@ -43,6 +43,7 @@
     - **URL**
     - **API token** (optional)
   - LLM responses and logs
+  - Guarantee: every property edited in the UI is persisted without alteration. There are no hidden defaults written to storage; any defaults are UI‑only and not serialized.
 - The frontend walks the graph sequentially, invoking each node’s LLM API via the backend.  
   The response of one node becomes the input of the next.
 

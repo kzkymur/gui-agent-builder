@@ -93,7 +93,10 @@ export default function NodeEditor({ node, mcpOptions, onChange }: { node: Node<
         </>
       )}
       {node.type === 'entry' && (
-        <ArrayEditor label="Inputs" values={(draft as any).inputs ?? []} onChange={(vals) => update({ inputs: vals } as any)} placeholder="input name" />
+        <EntryInputsEditor
+          inputs={(draft as any).inputs ?? []}
+          onChange={(vals) => update({ inputs: vals } as any)}
+        />
       )}
       {node.type === 'mcp' && (
         <>
@@ -146,6 +149,36 @@ function InputsEditor({ inputs, onChange }: { inputs: { key: string; description
         </div>
       </div>
       <div className="help">Each input handle has a short <b>key</b> and a longer <b>description</b> that becomes part of the prompt.</div>
+    </div>
+  );
+}
+
+function EntryInputsEditor({ inputs, onChange }: { inputs: { key: string; value?: string }[]; onChange: (v: { key: string; value?: string }[]) => void }) {
+  const list = inputs ?? [];
+  const setAt = (i: number, patch: Partial<{ key: string; value?: string }>) => {
+    const next = list.map((item, idx) => (idx === i ? { ...item, ...patch } : item));
+    onChange(next);
+  };
+  const removeAt = (i: number) => onChange(list.filter((_, idx) => idx !== i));
+  const add = () => onChange([...(list ?? []), { key: '', value: '' }]);
+  return (
+    <div className="field">
+      <span>Inputs</span>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {list.map((it, i) => (
+          <div key={i} style={{ display: 'grid', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input style={{ width: '40%' }} placeholder="key" value={it.key} onChange={(e) => setAt(i, { key: e.target.value })} />
+              <input style={{ flex: 1 }} placeholder="value" value={it.value ?? ''} onChange={(e) => setAt(i, { value: e.target.value })} />
+              <button type="button" onClick={() => removeAt(i)} aria-label={`Remove input ${i + 1}`}>−</button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <button type="button" onClick={add}>Add Input</button>
+        </div>
+      </div>
+      <div className="help">Each input row defines a <b>key</b> and a <b>value</b> passed to downstream nodes.</div>
     </div>
   );
 }
