@@ -5,6 +5,12 @@ export type EntryData = {
   inputs: string[];
 };
 
+// One input handle is composed by two properties: key and description.
+export type LLMInput = {
+  key: string;
+  description: string;
+};
+
 export type LLMData = {
   name: string;
   provider: string;
@@ -16,6 +22,8 @@ export type LLMData = {
   responseSchema?: unknown;
   // List of JSON Pointers (RFC 6901) selecting outputs from the response
   outputPointers?: string[];
+  // Inputs (one handle per item): key + description only.
+  inputs?: LLMInput[];
 };
 
 export type RouterData = {

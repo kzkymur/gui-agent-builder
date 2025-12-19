@@ -24,7 +24,8 @@ body {
 }
 
 .app {
-  min-height: 100%;
+  height: 100vh;
+  max-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
@@ -38,7 +39,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 0;
-  min-height: 0;
+  min-height: 0; /* allow children (sidebar) to shrink and scroll */
 }
 .graph-placeholder {
   display: grid;
@@ -81,8 +82,6 @@ body {
 .node__handles-right {
   display: flex;
   gap: 6px;
-}
-.node__handles-right {
   flex-direction: column;
   align-items: flex-end;
 }
@@ -142,9 +141,17 @@ body {
   font-size: 13px;
   line-height: 1.4;
 }
-.field textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.field input::placeholder, .field textarea::placeholder { color: #666a; }
-.field input:focus, .field textarea:focus, .sidebar select:focus, .sidebar button:focus {
+.field textarea.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #666a;
+}
+.field input:focus,
+.field textarea:focus,
+.sidebar select:focus,
+.sidebar button:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 1px;
 }
@@ -157,6 +164,8 @@ body {
   background: #101012;
   border-left: 1px solid #222;
   overflow: auto;
+  /* Allow the grid child to shrink and scroll */
+  min-height: 0;
 }
 .sidebar select[multiple] {
   background: #0f0f12;
@@ -174,8 +183,24 @@ body {
   padding: 6px 10px;
   cursor: pointer;
 }
-.sidebar button:hover { background: #212126; }
-.sidebar button:active { background: #17171b; }
+.sidebar button:hover {
+  background: #212126;
+}
+.sidebar button:active {
+  background: #17171b;
+
+  color: #e6e6e6;
+  border: 1px solid #2a2a2e;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.sidebar button:hover {
+  background: #212126;
+}
+.sidebar button:active {
+  background: #17171b;
+}
 /* Ensure checkboxes in the sidebar have a consistent fixed size */
 .sidebar input[type="checkbox"] {
   width: 16px;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -43,6 +43,9 @@ export default function GraphCanvas({
 }: Props) {
   const [localNodes, setLocalNodes, handleNodesChange] = useNodesState(nodes);
   const [localEdges, setLocalEdges, handleEdgesChange] = useEdgesState(edges);
+  const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
+  const [pendingNodes, setPendingNodes] = useState<Node<NodeData>[] | null>(null);
+  const [pendingEdges, setPendingEdges] = useState<Edge[] | null>(null);
 
   const nodeTypes = useMemo<NodeTypes>(
     () => ({
@@ -68,22 +71,23 @@ export default function GraphCanvas({
     (changes) => {
       setLocalNodes((ns) => {
         const next = applyNodeChanges(changes, ns);
-        onNodesChange(next as unknown as Node<NodeData>[]);
+        // Defer parent update to after-commit effect
+        setPendingNodes(next as unknown as Node<NodeData>[]);
         return next;
       });
     },
-    [setLocalNodes, onNodesChange]
+    [setLocalNodes]
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
     (changes) => {
       setLocalEdges((es) => {
         const next = applyEdgeChanges(changes, es);
-        onEdgesChange(next as unknown as Edge[]);
+        setPendingEdges(next as unknown as Edge[]);
         return next;
       });
     },
-    [setLocalEdges, onEdgesChange]
+    [setLocalEdges]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -97,19 +101,37 @@ export default function GraphCanvas({
       if (tgt.type === "mcp" || tgt.type === "entry") return;
       setLocalEdges((eds) => {
         const next = addEdge(connection, eds);
-        onEdgesChange(next as unknown as Edge[]);
+        setPendingEdges(next as unknown as Edge[]);
         return next;
       });
     },
-    [setLocalEdges, onEdgesChange, localNodes]
+    [setLocalEdges, localNodes]
   );
 
-  const onSelection = useCallback(
-    (elements: { nodes: Node<NodeData>[] }) => {
-      onSelectNode(elements.nodes[0] ?? null);
-    },
-    [onSelectNode]
-  );
+  const onSelection = useCallback((elements: { nodes: Node<NodeData>[] }) => {
+    // Defer notifying parent to avoid setState during render warning
+    setSelectedNode(elements.nodes[0] ?? null);
+  }, []);
+
+  // Notify parent after render commit
+  useEffect(() => {
+    onSelectNode(selectedNode);
+  }, [selectedNode, onSelectNode]);
+
+  // Flush pending node/edge updates to parent after commit
+  useEffect(() => {
+    if (pendingNodes) {
+      onNodesChange(pendingNodes);
+      setPendingNodes(null);
+    }
+  }, [pendingNodes, onNodesChange]);
+
+  useEffect(() => {
+    if (pendingEdges) {
+      onEdgesChange(pendingEdges);
+      setPendingEdges(null);
+    }
+  }, [pendingEdges, onEdgesChange]);
 
   return (
     <div style={{ width: "100%", height: "100%" }}>

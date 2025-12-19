@@ -50,16 +50,28 @@ function ensureSchema(db: Database) {
       CREATE TABLE IF NOT EXISTS edges (
         id TEXT PRIMARY KEY,
         source TEXT NOT NULL,
-        target TEXT NOT NULL
+        target TEXT NOT NULL,
+        sourceHandle TEXT,
+        targetHandle TEXT
       );
       PRAGMA user_version = 1;
+      COMMIT;
+    `);
+  }
+  // v2: add handle columns to edges if upgrading from an older DB
+  if (v < 2) {
+    db.exec(`
+      BEGIN;
+      ALTER TABLE edges ADD COLUMN sourceHandle TEXT;
+      ALTER TABLE edges ADD COLUMN targetHandle TEXT;
+      PRAGMA user_version = 2;
       COMMIT;
     `);
   }
 }
 
 export type PersistNode = { id: string; type: string; x: number; y: number; data: unknown };
-export type PersistEdge = { id: string; source: string; target: string };
+export type PersistEdge = { id: string; source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null };
 
 export function loadGraph(): { nodes: PersistNode[]; edges: PersistEdge[] } {
   if (!DB) throw new Error('DB not initialized');
@@ -72,11 +84,11 @@ export function loadGraph(): { nodes: PersistNode[]; edges: PersistEdge[] } {
       nodes.push({ id: String(id), type: String(type), x: Number(x), y: Number(y), data: JSON.parse(String(data)) });
     }
   }
-  const eRes = DB.exec('SELECT id, source, target FROM edges');
+  const eRes = DB.exec('SELECT id, source, target, sourceHandle, targetHandle FROM edges');
   if (eRes.length) {
     const rows = eRes[0].values;
-    for (const [id, source, target] of rows) {
-      edges.push({ id: String(id), source: String(source), target: String(target) });
+    for (const [id, source, target, sourceHandle, targetHandle] of rows) {
+      edges.push({ id: String(id), source: String(source), target: String(target), sourceHandle: sourceHandle as string | null, targetHandle: targetHandle as string | null });
     }
   }
   return { nodes, edges };
@@ -94,13 +106,12 @@ export function saveGraph(nodes: PersistNode[], edges: PersistEdge[]) {
   }
   nStmt.free();
 
-  const eStmt = DB.prepare('INSERT INTO edges (id, source, target) VALUES (?, ?, ?)');
+  const eStmt = DB.prepare('INSERT INTO edges (id, source, target, sourceHandle, targetHandle) VALUES (?, ?, ?, ?, ?)');
   for (const e of edges) {
-    eStmt.run([e.id, e.source, e.target]);
+    eStmt.run([e.id, e.source, e.target, e.sourceHandle ?? null, e.targetHandle ?? null]);
   }
   eStmt.free();
 
   DB.exec('COMMIT');
   exportAndPersist();
 }
-

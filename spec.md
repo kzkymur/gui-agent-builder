@@ -34,7 +34,8 @@
     - **Provider** (Anthropic, OpenAI, DeepSeek, …)
     - **Model**
     - **System prompt**
-    - **Response JSON Schema** (`responseSchema`)
+    - **Response JSON Schema** (`responseSchema`) — edited in the LLM Settings section of the sidebar
+    - **Inputs (handles) with key and description** (`inputs`)
     - **Outputs mapped by JSON Pointer** (`outputPointers`)
     - **Target MCP server(s)**
   - Definitions of each MCP server
@@ -57,6 +58,10 @@
   - Every LLM must return JSON that validates against the node’s `responseSchema` (JSON Schema).
   - Output ports are defined as JSON Pointers (RFC 6901) into that response.  
     Example: For `{ "a": { "b": 2 } }`, a port may point to `/a/b`.
+  
+- **LLM Inputs**
+  - Each LLM node declares `inputs` — a list of input handles composed of two properties: `key` (short identifier) and `description` (longer text used in the prompt).
+  - Both `key` and `description` are edited by the user in the sidebar. No binding to upstream nodes is defined at this time.
 - **Error Handling**
   - The backend returns proper HTTP error status codes for any LLM or MCP failure.
 
