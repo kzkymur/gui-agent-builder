@@ -11,19 +11,19 @@ import ReactFlow, {
   applyNodeChanges,
 } from "reactflow";
 import type {
-  Node,
+  Connection,
   Edge,
+  Node,
   NodeTypes,
+  OnConnect,
   OnEdgesChange,
   OnNodesChange,
-  Connection,
-  OnConnect,
 } from "reactflow";
+import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
-import RouterNode from "../nodes/RouterNode";
 import MCPNode from "../nodes/MCPNode";
-import EndNode from "../nodes/EndNode";
+import RouterNode from "../nodes/RouterNode";
 import type { NodeData } from "../types";
 
 type Props = {
@@ -55,7 +55,7 @@ export default function GraphCanvas({
       mcp: MCPNode,
       end: EndNode,
     }),
-    []
+    [],
   );
 
   // Keep local state in sync when parent props change (e.g., after DB load)
@@ -76,7 +76,7 @@ export default function GraphCanvas({
         return next;
       });
     },
-    [setLocalNodes]
+    [setLocalNodes],
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
@@ -87,7 +87,7 @@ export default function GraphCanvas({
         return next;
       });
     },
-    [setLocalEdges]
+    [setLocalEdges],
   );
 
   const onConnect: OnConnect = useCallback(
@@ -105,7 +105,7 @@ export default function GraphCanvas({
         return next;
       });
     },
-    [setLocalEdges, localNodes]
+    [setLocalEdges, localNodes],
   );
 
   const onSelection = useCallback((elements: { nodes: Node<NodeData>[] }) => {

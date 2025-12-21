@@ -1,4 +1,5 @@
-import React from 'react';
+import type React from "react";
+import { useEngineStore } from "../engine/store";
 
 type Props = {
   title: string;
@@ -6,10 +7,17 @@ type Props = {
   handles?: React.ReactNode; // area rendered below body
   kind?: string;
   style?: React.CSSProperties;
+  nodeId?: string;
 };
 
-export default function NodeChrome({ title, children, handles, kind, style }: Props) {
-  const cls = kind ? `node node--${kind}` : 'node';
+export default function NodeChrome({ title, children, handles, kind, style, nodeId }: Props) {
+  const activeRunning = useEngineStore((s) => s.activeRunning);
+  const isRunning = nodeId
+    ? Array.from(activeRunning.values()).some((v) => v.nodeId === nodeId)
+    : false;
+  const cls = ["node", kind ? `node--${kind}` : null, isRunning ? "node--running" : null]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div className={cls} style={style}>
       <div className="node__title">{title}</div>

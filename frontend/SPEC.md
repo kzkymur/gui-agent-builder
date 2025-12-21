@@ -5,6 +5,12 @@
 **How To Run**
 
 - `cd frontend && npm run dev` (port 5173). `npm run build` then `npm run preview` (port 5174).
+ - TypeScript: `npm run typecheck` runs `tsc --noEmit` against `tsconfig.json`. Build also runs `tsc -b` before Vite.
+ - Biome (format + lint):
+   - `npm run lint` — `biome check .` (no writes)
+   - `npm run format` — `biome format .` (dry run)
+   - `npm run fix` — `biome check --apply` + `biome format --write`
+   - Config lives in `frontend/biome.json`; generated code and build output are ignored via `.biomeignore`.
 
 **Structure**
 
@@ -44,12 +50,15 @@
 **UI/Interaction Specs**
 
 - Nodes are visually differentiated by type-specific colors for clarity.
+- Running nodes show an orange outline to indicate activity.
 - Provide a visible "Add Node" control to insert a new node into the graph.
 - Support removing the selected node via the Delete key (and update edges accordingly).
 - LLM sidebar includes a checkbox list to choose MCP servers from existing MCP nodes (by node id/name).
 - Entry sidebar includes an editor for key/value rows.
+- Sidebar occupies full height and scrolls internally; graph and sidebar share the viewport vertically under a constant-height footer.
+- Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
 - Sidebar sections for LLM nodes:
-- "LLM Settings": provider, model, system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default.
+- "LLM Settings": provider, model, system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).
 - "Outputs": JSON Pointers only (`outputPointers`). The Response Schema is not part of the Outputs section.
 

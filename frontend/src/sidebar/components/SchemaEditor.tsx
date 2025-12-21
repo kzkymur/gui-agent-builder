@@ -1,13 +1,17 @@
-import React from 'react';
+import React from "react";
 
-export default function SchemaEditor({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
+export default function SchemaEditor({
+  value,
+  onChange,
+}: { value: unknown; onChange: (v: unknown) => void }) {
   const [text, setText] = React.useState<string>(
-    typeof value === 'string' ? (value as string) : value ? JSON.stringify(value, null, 2) : ''
+    typeof value === "string" ? (value as string) : value ? JSON.stringify(value, null, 2) : "",
   );
 
   // Keep local text in sync when external value changes (e.g., after save/reload)
   React.useEffect(() => {
-    const next = typeof value === 'string' ? (value as string) : value ? JSON.stringify(value, null, 2) : '';
+    const next =
+      typeof value === "string" ? (value as string) : value ? JSON.stringify(value, null, 2) : "";
     setText(next);
   }, [value]);
 
@@ -16,11 +20,11 @@ export default function SchemaEditor({ value, onChange }: { value: unknown; onCh
   if (text.trim()) {
     try {
       const parsed = JSON.parse(text);
-      if (parsed && typeof parsed !== 'object') {
-        error = 'Schema must be a JSON object.';
+      if (parsed && typeof parsed !== "object") {
+        error = "Schema must be a JSON object.";
       }
     } catch (e: any) {
-      error = e?.message || 'Invalid JSON';
+      error = e?.message || "Invalid JSON";
     }
   }
 
@@ -44,7 +48,7 @@ export default function SchemaEditor({ value, onChange }: { value: unknown; onCh
             const parsed = text.trim() ? JSON.parse(text) : undefined;
             if (parsed === undefined) {
               onChange(undefined);
-            } else if (parsed && typeof parsed === 'object') {
+            } else if (parsed && typeof parsed === "object") {
               onChange(parsed);
             } else {
               // Not an object; keep raw text
@@ -56,9 +60,9 @@ export default function SchemaEditor({ value, onChange }: { value: unknown; onCh
           }
         }}
         aria-invalid={Boolean(error).toString()}
-        style={error ? { borderColor: 'var(--danger, #cc3b3b)' } : undefined}
+        style={error ? { borderColor: "var(--danger, #cc3b3b)" } : undefined}
       />
-      {error && <div style={{ color: 'var(--danger, #cc3b3b)', fontSize: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--danger, #cc3b3b)", fontSize: 12 }}>{error}</div>}
     </label>
   );
 }

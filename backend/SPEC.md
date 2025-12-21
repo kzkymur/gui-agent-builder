@@ -41,7 +41,7 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
     - `provider` (string, required) — e.g. `openai`, `anthropic`, `deepseek`.
     - `model` (string, required)
     - `messages` (array, required) — chat format `[ { "role": "system|user|assistant", "content": string } ]`.
-    - `response_schema` (object, optional) — JSON Schema to request structured output when provider supports it.
+    - `response_schema` (object, optional) — JSON Schema object to request structured output when the provider supports it. The value MUST be the schema itself, not wrapped (e.g., no `{ name, schema }`).
     - `temperature` (number, optional)
     - `max_tokens` (number, optional)
     - `extra` (object, optional) — provider‑specific passthrough fields.

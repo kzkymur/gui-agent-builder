@@ -1,7 +1,7 @@
-import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
-import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
+import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
+import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 
-const LS_KEY = 'llmflow_db_v1';
+const LS_KEY = "llmflow_db_v1";
 
 let SQL: SqlJsStatic | null = null;
 let DB: Database | null = null;
@@ -14,7 +14,7 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let s = '';
+  let s = "";
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s);
 }
@@ -35,7 +35,7 @@ export function exportAndPersist(): void {
 }
 
 function ensureSchema(db: Database) {
-  const [[userVersion]] = db.exec('PRAGMA user_version')?.[0]?.values ?? [[0]];
+  const [[userVersion]] = db.exec("PRAGMA user_version")?.[0]?.values ?? [[0]];
   const v = Number(userVersion ?? 0);
   if (v < 1) {
     db.exec(`
@@ -71,47 +71,67 @@ function ensureSchema(db: Database) {
 }
 
 export type PersistNode = { id: string; type: string; x: number; y: number; data: unknown };
-export type PersistEdge = { id: string; source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null };
+export type PersistEdge = {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+};
 
 export function loadGraph(): { nodes: PersistNode[]; edges: PersistEdge[] } {
-  if (!DB) throw new Error('DB not initialized');
+  if (!DB) throw new Error("DB not initialized");
   const nodes: PersistNode[] = [];
   const edges: PersistEdge[] = [];
-  const nRes = DB.exec('SELECT id, type, x, y, data FROM nodes');
+  const nRes = DB.exec("SELECT id, type, x, y, data FROM nodes");
   if (nRes.length) {
     const rows = nRes[0].values;
     for (const [id, type, x, y, data] of rows) {
-      nodes.push({ id: String(id), type: String(type), x: Number(x), y: Number(y), data: JSON.parse(String(data)) });
+      nodes.push({
+        id: String(id),
+        type: String(type),
+        x: Number(x),
+        y: Number(y),
+        data: JSON.parse(String(data)),
+      });
     }
   }
-  const eRes = DB.exec('SELECT id, source, target, sourceHandle, targetHandle FROM edges');
+  const eRes = DB.exec("SELECT id, source, target, sourceHandle, targetHandle FROM edges");
   if (eRes.length) {
     const rows = eRes[0].values;
     for (const [id, source, target, sourceHandle, targetHandle] of rows) {
-      edges.push({ id: String(id), source: String(source), target: String(target), sourceHandle: sourceHandle as string | null, targetHandle: targetHandle as string | null });
+      edges.push({
+        id: String(id),
+        source: String(source),
+        target: String(target),
+        sourceHandle: sourceHandle as string | null,
+        targetHandle: targetHandle as string | null,
+      });
     }
   }
   return { nodes, edges };
 }
 
 export function saveGraph(nodes: PersistNode[], edges: PersistEdge[]) {
-  if (!DB) throw new Error('DB not initialized');
-  DB.exec('BEGIN');
-  DB.exec('DELETE FROM nodes');
-  DB.exec('DELETE FROM edges');
+  if (!DB) throw new Error("DB not initialized");
+  DB.exec("BEGIN");
+  DB.exec("DELETE FROM nodes");
+  DB.exec("DELETE FROM edges");
 
-  const nStmt = DB.prepare('INSERT INTO nodes (id, type, x, y, data) VALUES (?, ?, ?, ?, ?)');
+  const nStmt = DB.prepare("INSERT INTO nodes (id, type, x, y, data) VALUES (?, ?, ?, ?, ?)");
   for (const n of nodes) {
     nStmt.run([n.id, n.type, n.x, n.y, JSON.stringify(n.data ?? {})]);
   }
   nStmt.free();
 
-  const eStmt = DB.prepare('INSERT INTO edges (id, source, target, sourceHandle, targetHandle) VALUES (?, ?, ?, ?, ?)');
+  const eStmt = DB.prepare(
+    "INSERT INTO edges (id, source, target, sourceHandle, targetHandle) VALUES (?, ?, ?, ?, ?)",
+  );
   for (const e of edges) {
     eStmt.run([e.id, e.source, e.target, e.sourceHandle ?? null, e.targetHandle ?? null]);
   }
   eStmt.free();
 
-  DB.exec('COMMIT');
+  DB.exec("COMMIT");
   exportAndPersist();
 }

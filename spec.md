@@ -34,7 +34,7 @@
     - **Provider** (Anthropic, OpenAI, DeepSeek, …)
     - **Model**
     - **System prompt**
-    - **Response JSON Schema** (`responseSchema`) — edited in the LLM Settings section of the sidebar
+    - **Response JSON Schema** (`responseSchema`) — edited in the LLM Settings section of the sidebar. Stored as a plain JSON Schema object (no wrapper fields).
     - **Inputs (handles) with key and description** (`inputs`)
     - **Outputs mapped by JSON Pointer** (`outputPointers`)
     - **Target MCP server(s)**

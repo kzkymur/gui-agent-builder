@@ -1,7 +1,7 @@
 import type { Edge, Node } from "reactflow";
-import type { NodeData, LLMData, EntryData } from "../types";
+import type { EntryData, LLMData, NodeData } from "../types";
+import { evalEnd, evalEntry, evalLLM, evalRouter } from "./adapters";
 import { useEngineStore } from "./store";
-import { evalEntry, evalEnd, evalLLM, evalRouter } from "./adapters";
 
 const scheduled = new Set<string>();
 
@@ -9,10 +9,7 @@ function getOutgoing(edges: Edge[], sourceId: string) {
   return edges.filter((e) => e.source === sourceId);
 }
 
-function pickLLMOutValue(
-  output: unknown,
-  pointer: string | undefined
-): unknown {
+function pickLLMOutValue(output: unknown, pointer: string | undefined): unknown {
   if (!pointer) return undefined;
   if (!pointer.startsWith("/")) return undefined;
   try {
@@ -26,25 +23,19 @@ function pickLLMOutValue(
   }
 }
 
-export function ignite(
-  nodes: Node<NodeData>[],
-  edges: Edge[],
-  entryIds?: string | string[]
-) {
+export function ignite(nodes: Node<NodeData>[], edges: Edge[], entryIds?: string | string[]) {
   const store = useEngineStore.getState();
   store.resetRun();
   const ids: string[] = Array.isArray(entryIds)
     ? entryIds
-    : typeof entryIds === 'string' && entryIds
+    : typeof entryIds === "string" && entryIds
       ? [entryIds]
-      : nodes.filter(n => n.type === 'entry').map(n => n.id);
+      : nodes.filter((n) => n.type === "entry").map((n) => n.id);
   for (const id of ids) {
     const node = nodes.find((n) => n.id === id);
     if (!node) continue;
     const data = (node.data || {}) as Partial<EntryData>;
-    const pairs = (data.inputs || [])
-      .map((it) => [it.key, it.value] as const)
-      .filter(([k]) => !!k);
+    const pairs = (data.inputs || []).map((it) => [it.key, it.value] as const).filter(([k]) => !!k);
     const input: Record<string, unknown> = Object.fromEntries(pairs);
     store.setInputBuf(id, input);
     store.setLatestInput(id, input);
@@ -58,7 +49,7 @@ function scheduleRunNode(
   nodes: Node<NodeData>[],
   edges: Edge[],
   nodeId: string,
-  parentTraceId?: string
+  parentTraceId?: string,
 ) {
   if (scheduled.has(nodeId)) return;
   scheduled.add(nodeId);
@@ -72,34 +63,34 @@ async function runNode(
   nodes: Node<NodeData>[],
   edges: Edge[],
   nodeId: string,
-  parentTraceId?: string
+  parentTraceId?: string,
 ) {
   const store = useEngineStore.getState();
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return;
   const traceId = store.traceStart(nodeId, parentTraceId);
-  const input = structuredClone(
-    store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>)
-  );
+  const input = structuredClone(store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>));
   useEngineStore.getState().traceFinish(traceId, { input });
   let output: unknown;
   try {
+    // mark node as actively running for UI highlighting
+    useEngineStore.getState().addActive(traceId, nodeId);
     if (node.type === "entry") output = (await evalEntry(node, input)).output;
     else if (node.type === "llm") output = (await evalLLM(node, input)).output;
-    else if (node.type === "router")
-      output = (await evalRouter(node, input)).output;
+    else if (node.type === "router") output = (await evalRouter(node, input)).output;
     else if (node.type === "end") output = (await evalEnd(node, input)).output;
     else output = input;
     useEngineStore.getState().setLatestOutput(nodeId, output);
-    useEngineStore
-      .getState()
-      .traceFinish(traceId, { output, endedAt: Date.now() });
+    useEngineStore.getState().traceFinish(traceId, { output, endedAt: Date.now() });
   } catch (e: any) {
     useEngineStore.getState().traceFinish(traceId, {
       error: String(e?.message || e),
       endedAt: Date.now(),
     });
     return;
+  } finally {
+    // clear running state regardless of outcome
+    useEngineStore.getState().removeActive(traceId);
   }
   await propagate(nodes, edges, node, traceId, output);
 }
@@ -109,7 +100,7 @@ async function propagate(
   edges: Edge[],
   source: Node<NodeData>,
   parentTraceId: string,
-  sourceOutput: unknown
+  sourceOutput: unknown,
 ) {
   const outgoing = getOutgoing(edges, source.id);
   const store = useEngineStore.getState();
@@ -129,15 +120,12 @@ async function propagate(
       if (key) nextInput = { ...nextInput, [key]: srcLatest[key] };
     } else if (source.type === "llm") {
       const idx = Number(e.sourceHandle?.replace("out-", ""));
-      const pointer = ((source.data as Partial<LLMData>).outputPointers || [])[
-        idx
-      ];
+      const pointer = ((source.data as Partial<LLMData>).outputPointers || [])[idx];
       const val = pickLLMOutValue(sourceOutput, pointer);
       // Map to the target input key when target is LLM
       if (target.type === "llm") {
         const inIdx = Number(e.targetHandle?.replace("in-", ""));
-        const key = ((target.data as Partial<LLMData>).inputs || [])[inIdx]
-          ?.key;
+        const key = ((target.data as Partial<LLMData>).inputs || [])[inIdx]?.key;
         if (key) nextInput = { ...nextInput, [key]: val };
       } else {
         // Non-LLM target: merge raw value

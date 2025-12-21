@@ -1,22 +1,25 @@
 import React from "react";
 import { Handle, Position } from "reactflow";
-import type { RFNodeProps, LLMData } from "../types";
+import type { LLMData, RFNodeProps } from "../types";
 import NodeChrome from "./NodeChrome";
 
-export default function LLMNode({ data }: RFNodeProps<LLMData>) {
+export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
   const outs = Array.isArray(data.outputPointers) ? data.outputPointers : [];
   const ins = Array.isArray(data.inputs) ? data.inputs : [];
   return (
     <NodeChrome
+      nodeId={id}
       title={data.name ?? "LLM"}
       kind="llm"
       handles={
         <>
           <div className="node__handles-left">
             {ins.map((inp, idx) => (
-              <div key={`in-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div key={`in-${idx}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Handle id={`in-${idx}`} type="target" position={Position.Left} />
-                <span title={inp.description} style={{ fontSize: 11, color: '#9ca3af' }}>{inp.key || `in-${idx}`}</span>
+                <span title={inp.description} style={{ fontSize: 11, color: "#9ca3af" }}>
+                  {inp.key || `in-${idx}`}
+                </span>
               </div>
             ))}
           </div>

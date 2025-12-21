@@ -1,29 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "reactflow/dist/style.css";
 import "./index.css";
-import GraphCanvas from "./graph/GraphCanvas";
-import { logGraphSnapshot } from "./engine/graph";
 import type { Edge, Node } from "reactflow";
-import type { LLMData, MCPData, NodeData } from "./types";
+import { backendClient } from "./engine/backendClient";
+import { logGraphSnapshot } from "./engine/graph";
+import { ignite } from "./engine/runner";
+import { useEngineStore } from "./engine/store";
+import GraphCanvas from "./graph/GraphCanvas";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
-import { backendClient } from "./engine/backendClient";
-import { ignite } from "./engine/runner";
+import type { LLMData, MCPData, NodeData } from "./types";
 
 export default function App() {
   const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
-  const [footerValue, setFooterValue] = useState<string>("");
-  const [newNodeType, setNewNodeType] = useState<
-    "entry" | "llm" | "router" | "mcp" | "end"
-  >("llm");
+  // Footer derives from End nodes' latest outputs
+  const [newNodeType, setNewNodeType] = useState<"entry" | "llm" | "router" | "mcp" | "end">("llm");
 
   // App.tsx stays thin; persistence lives in useGraph()
 
   // Factory for default node data by type
   const makeDefaultNode = (
     type: "entry" | "llm" | "router" | "mcp" | "end",
-    idx: number
+    idx: number,
   ): Node<NodeData> => {
     const id = `${type}-${Date.now()}`;
     const base = {
@@ -71,9 +70,7 @@ export default function App() {
       if (e.key !== "Delete") return;
       if (!selected) return;
       const nextNodes = nodes.filter((n) => n.id !== selected.id);
-      const nextEdges = edges.filter(
-        (e) => e.source !== selected.id && e.target !== selected.id
-      );
+      const nextEdges = edges.filter((e) => e.source !== selected.id && e.target !== selected.id);
       setNodes(nextNodes);
       setEdges(nextEdges);
       setSelected(null);
@@ -82,28 +79,37 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, nodes, edges]);
 
-  // Footer reflects End node's value, if an End node is selected
-  useEffect(() => {
-    const live = selected ? nodes.find((n) => n.id === selected.id) : null;
-    if (live?.type === "end") {
-      const v = (live.data as any).value ?? "";
-      setFooterValue(String(v));
-    } else {
-      setFooterValue("");
+  const latestOutputByNode = useEngineStore((s) => s.latestOutputByNode);
+  const endSummaries = useMemo(() => {
+    const ends = nodes.filter((n) => n.type === "end");
+    const parts: string[] = [];
+    for (const n of ends) {
+      const val = latestOutputByNode[n.id];
+      if (typeof val === "undefined") continue;
+      const pretty =
+        typeof val === "string"
+          ? val
+          : (() => {
+              try {
+                return JSON.stringify(val);
+              } catch {
+                return String(val);
+              }
+            })();
+      const name = (n.data as any)?.name || "End";
+      parts.push(`${name}: ${pretty}`);
     }
-  }, [selected, nodes]);
+    return parts;
+  }, [nodes, latestOutputByNode]);
 
   // Listen for Entry node 'ignite' events and kick off the engine
   useEffect(() => {
     const onIgnite = (e: Event) => {
-      const detail = (e as CustomEvent).detail as
-        | { entryId?: string | null }
-        | undefined;
+      const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
       ignite(nodes, edges, detail?.entryId ?? null);
     };
     window.addEventListener("engine:ignite", onIgnite as EventListener);
-    return () =>
-      window.removeEventListener("engine:ignite", onIgnite as EventListener);
+    return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
   return (
@@ -118,10 +124,7 @@ export default function App() {
             marginLeft: 12,
           }}
         >
-          <label
-            style={{ fontSize: 12, color: "var(--muted)" }}
-            htmlFor="newNodeType"
-          >
+          <label style={{ fontSize: 12, color: "var(--muted)" }} htmlFor="newNodeType">
             New:
           </label>
           <select
@@ -143,9 +146,7 @@ export default function App() {
             <option value="end">End</option>
           </select>
           <button onClick={addNode}>Add Node</button>
-          <button onClick={() => logGraphSnapshot(nodes, edges)}>
-            Log Graph
-          </button>
+          <button onClick={() => logGraphSnapshot(nodes, edges)}>Log Graph</button>
           <button
             onClick={() => {
               try {
@@ -178,21 +179,30 @@ export default function App() {
         </div>
       </header>
       <main className="app__main">
-        <GraphCanvas
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={(n) => {
-            setNodes(n);
-          }}
-          onEdgesChange={(e) => {
-            setEdges(e);
-          }}
-          onSelectNode={setSelected}
-        />
+        <div className="main-left">
+          <div className="graph">
+            <GraphCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={(n) => {
+                setNodes(n);
+              }}
+              onEdgesChange={(e) => {
+                setEdges(e);
+              }}
+              onSelectNode={setSelected}
+            />
+          </div>
+          <footer className="app__footer" aria-live="polite">
+            {endSummaries.length
+              ? endSummaries.join("  |  ")
+              : "Run the flow; End node outputs will appear here"}
+          </footer>
+        </div>
         <aside className="sidebar" aria-label="Sidebar">
           {(() => {
             const liveSelected = selected
-              ? nodes.find((n) => n.id === selected.id) ?? null
+              ? (nodes.find((n) => n.id === selected.id) ?? null)
               : null;
             const mcpOptions = nodes
               .filter((n) => n.type === "mcp")
@@ -209,11 +219,6 @@ export default function App() {
           })()}
         </aside>
       </main>
-      <footer className="app__footer" aria-live="polite">
-        {footerValue
-          ? `End value: ${footerValue}`
-          : "Select an End node to preview its value"}
-      </footer>
     </div>
   );
 }

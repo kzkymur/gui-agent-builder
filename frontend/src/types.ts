@@ -1,4 +1,4 @@
-import type { NodeProps } from 'reactflow';
+import type { NodeProps } from "reactflow";
 
 export type EntryData = {
   name: string;
@@ -44,6 +44,8 @@ export type EndData = {
   value?: string;
 };
 
-export type NodeData = Partial<EntryData & LLMData & RouterData & MCPData & EndData> & { name?: string };
+export type NodeData = Partial<EntryData & LLMData & RouterData & MCPData & EndData> & {
+  name?: string;
+};
 
 export type RFNodeProps<T extends NodeData> = NodeProps<T>;

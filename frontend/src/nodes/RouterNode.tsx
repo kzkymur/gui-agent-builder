@@ -1,13 +1,14 @@
-import React from 'react';
-import { Handle, Position } from 'reactflow';
-import type { RFNodeProps, RouterData } from '../types';
-import NodeChrome from './NodeChrome';
+import React from "react";
+import { Handle, Position } from "reactflow";
+import type { RFNodeProps, RouterData } from "../types";
+import NodeChrome from "./NodeChrome";
 
-export default function RouterNode({ data }: RFNodeProps<RouterData>) {
-  const branches = data.branches ?? ['a', 'b'];
+export default function RouterNode({ id, data }: RFNodeProps<RouterData>) {
+  const branches = data.branches ?? ["a", "b"];
   return (
     <NodeChrome
-      title={data.name ?? 'Router'}
+      nodeId={id}
+      title={data.name ?? "Router"}
       kind="router"
       handles={
         <>
@@ -22,7 +23,7 @@ export default function RouterNode({ data }: RFNodeProps<RouterData>) {
         </>
       }
     >
-      <div className="muted">Branches: {branches.join(', ') || '—'}</div>
+      <div className="muted">Branches: {branches.join(", ") || "—"}</div>
     </NodeChrome>
   );
 }

@@ -1,11 +1,12 @@
 import React from "react";
 import { Handle, Position } from "reactflow";
-import type { RFNodeProps, EntryData } from "../types";
+import type { EntryData, RFNodeProps } from "../types";
 import NodeChrome from "./NodeChrome";
 export default function EntryNode({ id, data }: RFNodeProps<EntryData>) {
   const items = data.inputs ?? [{ key: "user_input", value: "" }];
   return (
     <NodeChrome
+      nodeId={id}
       title={data.name ?? "Entry"}
       kind="entry"
       handles={
@@ -36,30 +37,18 @@ export default function EntryNode({ id, data }: RFNodeProps<EntryData>) {
           </div>
           <div className="node__handles-right">
             {items.map((it, idx) => (
-              <div
-                key={it.key + idx}
-                style={{ display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <span
-                  title={it.value}
-                  style={{ fontSize: 11, color: "#9ca3af" }}
-                >
+              <div key={it.key + idx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span title={it.value} style={{ fontSize: 11, color: "#9ca3af" }}>
                   {it.key || `out-${idx}`}
                 </span>
-                <Handle
-                  id={`out-${idx}`}
-                  type="source"
-                  position={Position.Right}
-                />
+                <Handle id={`out-${idx}`} type="source" position={Position.Right} />
               </div>
             ))}
           </div>
         </>
       }
     >
-      <div className="muted">
-        Inputs: {items.map((i) => i.key).join(", ") || "none"}
-      </div>
+      <div className="muted">Inputs: {items.map((i) => i.key).join(", ") || "none"}</div>
     </NodeChrome>
   );
 }

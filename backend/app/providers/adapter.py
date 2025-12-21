@@ -61,11 +61,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     has_mcp = bool(payload.get("mcp", {}).get("servers"))
     if provider == "anthropic" and response_schema and not has_mcp:
         try:
-            schema_obj = (
-                response_schema.get("schema")
-                if isinstance(response_schema, dict) and "schema" in response_schema
-                else response_schema
-            )
+            schema_obj = response_schema
             tool = {
                 "name": "output",
                 "description": "Return the structured result matching the schema.",
@@ -136,11 +132,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Finalize into structured output when requested (post-tool phase)
     if provider == "anthropic" and response_schema:
         try:
-            schema_obj = (
-                response_schema.get("schema")
-                if isinstance(response_schema, dict) and "schema" in response_schema
-                else response_schema
-            )
+            schema_obj = response_schema
             tool = {
                 "name": "output",
                 "description": "Return the structured result matching the schema.",

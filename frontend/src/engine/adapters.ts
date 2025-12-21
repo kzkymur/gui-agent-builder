@@ -1,24 +1,23 @@
 import type { Node } from "reactflow";
-import type { NodeData, LLMData, RouterData } from "../types";
+import type { LLMData, NodeData, RouterData } from "../types";
 import { backendClient } from "./backendClient";
 
 export type EvalResult = { output: unknown };
 
 export async function evalEntry(
   _node: Node<NodeData>,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<EvalResult> {
   return { output: input };
 }
 
 export async function evalLLM(
   node: Node<NodeData>,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<EvalResult> {
   const data = (node.data || {}) as Partial<LLMData>;
   const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (data.system)
-    messages.push({ role: "system", content: String(data.system) });
+  if (data.system) messages.push({ role: "system", content: String(data.system) });
   // naive synthesis: key: value per line
   const userContent = Object.entries(input || {})
     .map(([k, v]) => `${k}: ${String(v)}`)
@@ -36,10 +35,10 @@ export async function evalLLM(
   };
   console.log(data.responseSchema && typeof data.responseSchema === "object");
   if (data.responseSchema && typeof data.responseSchema === "object") {
-    (body as Record<string, unknown>).response_schema = {
-      name: "A",
-      schema: data.responseSchema as Record<string, unknown>,
-    };
+    (body as Record<string, unknown>).response_schema = data.responseSchema as Record<
+      string,
+      unknown
+    >;
   }
   try {
     const res = await backendClient.POST("/llm/invoke", {
@@ -66,7 +65,7 @@ export async function evalLLM(
 
 export async function evalRouter(
   _node: Node<NodeData>,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<EvalResult> {
   const text = String((input && (input["text"] ?? input["content"])) ?? "");
   const short = text.length <= 140;
@@ -76,7 +75,7 @@ export async function evalRouter(
 
 export async function evalEnd(
   _node: Node<NodeData>,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
 ): Promise<EvalResult> {
   return { output: input };
 }
