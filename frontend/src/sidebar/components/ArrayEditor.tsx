@@ -1,4 +1,5 @@
 import React from "react";
+import { Button, IconButton, Text, TextField } from "@radix-ui/themes";
 
 export default function ArrayEditor({
   label,
@@ -11,23 +12,24 @@ export default function ArrayEditor({
   const removeAt = (i: number) => onChange(values.filter((_, idx) => idx !== i));
   return (
     <div className="field">
-      <span>{label}</span>
+      <Text as="span" weight="medium">{label}</Text>
       <div style={{ display: "grid", gap: 6 }}>
         {(values ?? []).map((v, i) => (
           <div key={i} style={{ display: "flex", gap: 6 }}>
-            <input value={v ?? ""} placeholder={placeholder} onChange={(e) => setAt(i, e.target.value)} />
-            <button
+            <TextField.Root style={{ flex: 1 }} value={v ?? ""} placeholder={placeholder} onChange={(e) => setAt(i, (e.target as HTMLInputElement).value)} />
+            <IconButton
               type="button"
+              color="red"
+              variant="soft"
+              size="1"
               onClick={() => removeAt(i)}
               aria-label={`Remove ${label} ${i + 1}`}
             >
               −
-            </button>
+            </IconButton>
           </div>
         ))}
-        <button type="button" onClick={add}>
-          Add {label.slice(0, -1)}
-        </button>
+        <Button type="button" onClick={add}>Add {label.slice(0, -1)}</Button>
       </div>
     </div>
   );

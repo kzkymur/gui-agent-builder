@@ -1,4 +1,5 @@
 import React from "react";
+import { Button, Checkbox, IconButton, Text, TextArea, TextField } from "@radix-ui/themes";
 import type { Node } from "reactflow";
 import type { LLMData, MCPData, NodeData } from "../types";
 import ArrayEditor from "./components/ArrayEditor";
@@ -38,29 +39,29 @@ export default function NodeEditor({
     <div className="editor">
       <div className="section-title">General</div>
       <label className="field">
-        <span>Name</span>
-        <input value={draft.name ?? ""} onChange={(e) => update({ name: e.target.value })} />
+        <Text as="span" weight="medium">Name</Text>
+        <TextField.Root value={draft.name ?? ""} onChange={(e) => update({ name: (e.target as HTMLInputElement).value })} />
       </label>
       {node.type === "llm" && (
         <>
           <hr className="divider" />
           <div className="section-title">LLM Settings</div>
           <label className="field">
-            <span>Provider</span>
-            <input
+            <Text as="span" weight="medium">Provider</Text>
+            <TextField.Root
               value={(draft as LLMData).provider ?? ""}
-              onChange={(e) => update({ provider: e.target.value } as Partial<LLMData>)}
+              onChange={(e) => update({ provider: (e.target as HTMLInputElement).value } as Partial<LLMData>)}
             />
           </label>
           <label className="field">
-            <span>Model</span>
-            <input
+            <Text as="span" weight="medium">Model</Text>
+            <TextField.Root
               value={(draft as LLMData).model ?? ""}
-              onChange={(e) => update({ model: e.target.value } as Partial<LLMData>)}
+              onChange={(e) => update({ model: (e.target as HTMLInputElement).value } as Partial<LLMData>)}
             />
           </label>
           <label className="field">
-            <span>MCP Servers</span>
+            <Text as="span" weight="medium">MCP Servers</Text>
             {mcpOptions.length === 0 ? (
               <div className="help">No MCP nodes available in the graph.</div>
             ) : (
@@ -69,12 +70,12 @@ export default function NodeEditor({
                   const selected = ((draft as LLMData).mcpServers ?? []).includes(opt.id);
                   return (
                     <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected}
-                        onChange={(e) => {
+                        onCheckedChange={(checked) => {
                           const current = (draft as LLMData).mcpServers ?? [];
-                          const next = e.target.checked
+                          const isChecked = Boolean(checked);
+                          const next = isChecked
                             ? Array.from(new Set([...current, opt.id]))
                             : current.filter((id) => id !== opt.id);
                           update({ mcpServers: next } as Partial<LLMData>);
@@ -95,8 +96,8 @@ export default function NodeEditor({
             onChange={(inp) => update({ inputs: inp } as Partial<LLMData>)}
           />
           <label className="field">
-            <span>System Prompt</span>
-            <textarea
+            <Text as="span" weight="medium">System Prompt</Text>
+            <TextArea
               className="mono"
               rows={4}
               value={(draft as LLMData).system ?? ""}
@@ -134,17 +135,17 @@ export default function NodeEditor({
       {node.type === "mcp" && (
         <>
           <label className="field">
-            <span>URL</span>
-            <input
+            <Text as="span" weight="medium">URL</Text>
+            <TextField.Root
               value={(draft as MCPData).url ?? ""}
-              onChange={(e) => update({ url: e.target.value } as Partial<MCPData>)}
+              onChange={(e) => update({ url: (e.target as HTMLInputElement).value } as Partial<MCPData>)}
             />
           </label>
           <label className="field">
-            <span>Token</span>
-            <input
+            <Text as="span" weight="medium">Token</Text>
+            <TextField.Root
               value={(draft as MCPData).token ?? ""}
-              onChange={(e) => update({ token: e.target.value } as Partial<MCPData>)}
+              onChange={(e) => update({ token: (e.target as HTMLInputElement).value } as Partial<MCPData>)}
             />
           </label>
         </>
@@ -159,8 +160,8 @@ export default function NodeEditor({
       )}
       {node.type === "end" && (
         <label className="field">
-          <span>Value (preview)</span>
-          <textarea
+          <Text as="span" weight="medium">Value (preview)</Text>
+          <TextArea
             rows={3}
             value={(draft as any).value ?? ""}
             onChange={(e) => update({ value: e.target.value } as any)}
@@ -187,37 +188,38 @@ function InputsEditor({
   const add = () => onChange([...(list ?? []), { key: "", description: "" }]);
   return (
     <div className="field">
-      <span>Input Handles</span>
+      <Text as="span" weight="medium">Input Handles</Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.map((it, i) => (
           <div key={i} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input
+              <TextField.Root
                 style={{ width: "30%" }}
                 placeholder="key"
                 value={it.key ?? ""}
-                onChange={(e) => setAt(i, { key: e.target.value })}
+                onChange={(e) => setAt(i, { key: (e.target as HTMLInputElement).value })}
               />
-              <input
+              <TextField.Root
                 style={{ flex: 1 }}
                 placeholder="description"
                 value={it.description ?? ""}
-                onChange={(e) => setAt(i, { description: e.target.value })}
+                onChange={(e) => setAt(i, { description: (e.target as HTMLInputElement).value })}
               />
-              <button
+              <IconButton
                 type="button"
+                color="red"
+                variant="soft"
+                size="1"
                 onClick={() => removeAt(i)}
                 aria-label={`Remove input ${i + 1}`}
               >
                 −
-              </button>
+              </IconButton>
             </div>
           </div>
         ))}
         <div>
-          <button type="button" onClick={add}>
-            Add Input
-          </button>
+          <Button type="button" onClick={add}>Add Input</Button>
         </div>
       </div>
       <div className="help">
@@ -244,37 +246,38 @@ function EntryInputsEditor({
   const add = () => onChange([...(list ?? []), { key: "", value: "" }]);
   return (
     <div className="field">
-      <span>Inputs</span>
+      <Text as="span" weight="medium">Inputs</Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.map((it, i) => (
           <div key={i} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input
+              <TextField.Root
                 style={{ width: "40%" }}
                 placeholder="key"
                 value={it.key ?? ""}
-                onChange={(e) => setAt(i, { key: e.target.value })}
+                onChange={(e) => setAt(i, { key: (e.target as HTMLInputElement).value })}
               />
-              <input
+              <TextField.Root
                 style={{ flex: 1 }}
                 placeholder="value"
                 value={it.value ?? ""}
-                onChange={(e) => setAt(i, { value: e.target.value })}
+                onChange={(e) => setAt(i, { value: (e.target as HTMLInputElement).value })}
               />
-              <button
+              <IconButton
                 type="button"
+                color="red"
+                variant="soft"
+                size="1"
                 onClick={() => removeAt(i)}
                 aria-label={`Remove input ${i + 1}`}
               >
                 −
-              </button>
+              </IconButton>
             </div>
           </div>
         ))}
         <div>
-          <button type="button" onClick={add}>
-            Add Input
-          </button>
+          <Button type="button" onClick={add}>Add Input</Button>
         </div>
       </div>
       <div className="help">

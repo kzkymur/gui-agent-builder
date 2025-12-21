@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@radix-ui/themes";
 import { Handle, Position } from "reactflow";
 import type { EntryData, RFNodeProps } from "../types";
 import NodeChrome from "./NodeChrome";
@@ -15,25 +16,19 @@ export default function EntryNode({ id, data }: RFNodeProps<EntryData>) {
             className="node__handles-left"
             style={{ display: "flex", alignItems: "center", paddingLeft: 4 }}
           >
-            <button
+            <Button
               type="button"
+              size="1"
+              variant="soft"
               onClick={(e) => {
                 e.stopPropagation();
                 const evt = new CustomEvent("engine:ignite", { detail: { entryId: id } });
                 window.dispatchEvent(evt);
               }}
               title="Ignite: start the engine from this entry"
-              style={{
-                fontSize: 10,
-                padding: "2px 6px",
-                borderRadius: 6,
-                border: "1px solid #2a2a2e",
-                background: "#141418",
-                color: "var(--fg)",
-              }}
             >
               Ignite
-            </button>
+            </Button>
           </div>
           <div className="node__handles-right">
             {items.map((it, idx) => (

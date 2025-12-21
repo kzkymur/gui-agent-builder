@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Button } from "@radix-ui/themes";
 import "reactflow/dist/style.css";
 import "./index.css";
 import type { Edge, Node } from "reactflow";
@@ -120,14 +121,14 @@ export default function App() {
             <option value="mcp">MCP</option>
             <option value="end">End</option>
           </select>
-          <button onClick={addNode}>Add Node</button>
-          <button onClick={() => logGraphSnapshot(nodes, edges)}>Log Graph</button>
-          <button
+          <Button onClick={addNode}>Add Node</Button>
+          <Button variant="soft" onClick={() => logGraphSnapshot(nodes, edges)}>Log Graph</Button>
+          <Button
             onClick={runFlow}
           >
             Run
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               try {
                 const { nodes: nn, edges: ee } = loadGraph();
@@ -140,8 +141,8 @@ export default function App() {
             }}
           >
             Log DB
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={async () => {
               try {
                 // Typed call to backend's health endpoint
@@ -155,7 +156,7 @@ export default function App() {
             }}
           >
             Ping Backend
-          </button>
+          </Button>
         </div>
       </header>
       <main className="app__main">

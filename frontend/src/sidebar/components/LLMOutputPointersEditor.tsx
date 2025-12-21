@@ -1,4 +1,5 @@
 import React from "react";
+import { Button, IconButton, Text, TextField } from "@radix-ui/themes";
 
 function isValidJsonPointer(ptr: string): boolean {
   if (typeof ptr !== "string") return false;
@@ -33,7 +34,7 @@ export default function LLMOutputPointersEditor({
 
   return (
     <div className="field">
-      <span>JSON Pointers (/path)</span>
+      <Text as="span" weight="medium">JSON Pointers (/path)</Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.length === 0 && <div className="help">No outputs yet. Click “Add Output”.</div>}
         {list.map((ptr, idx) => (
@@ -42,24 +43,24 @@ export default function LLMOutputPointersEditor({
             style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr", alignItems: "center" }}
           >
             <div style={{ display: "flex", gap: 6 }}>
-              <input
+              <TextField.Root
+                color={ptr && !isValidJsonPointer(ptr) ? "red" : undefined}
+                style={{ flex: 1 }}
                 placeholder="e.g. /result/summary or /data/items/0/name"
                 value={ptr ?? ""}
-                onChange={(e) => setPtr(idx, e.target.value)}
-                aria-invalid={ptr ? (!isValidJsonPointer(ptr)).toString() : "false"}
-                style={
-                  ptr && !isValidJsonPointer(ptr)
-                    ? { borderColor: "var(--danger, #cc3b3b)" }
-                    : undefined
-                }
+                onChange={(e) => setPtr(idx, (e.target as HTMLInputElement).value)}
+                aria-invalid={ptr ? !isValidJsonPointer(ptr) : false}
               />
-              <button
+              <IconButton
                 type="button"
+                color="red"
+                variant="soft"
+                size="1"
                 onClick={() => remove(idx)}
                 aria-label={`Remove output ${idx + 1}`}
               >
                 −
-              </button>
+              </IconButton>
             </div>
             {ptr && !isValidJsonPointer(ptr) && (
               <div style={{ color: "var(--danger, #cc3b3b)", fontSize: 12 }}>
@@ -69,9 +70,9 @@ export default function LLMOutputPointersEditor({
           </div>
         ))}
         <div>
-          <button type="button" onClick={add}>
+          <Button type="button" onClick={add} variant="solid">
             Add Output
-          </button>
+          </Button>
         </div>
       </div>
     </div>
