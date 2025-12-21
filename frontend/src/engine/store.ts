@@ -28,6 +28,7 @@ export type EngineState = {
   latestInputByNode: Record<string, Record<string, unknown> | undefined>;
   latestOutputByNode: Record<string, unknown>;
   trace: { nodes: Record<string, TraceNode>; roots: string[] };
+  tokenUsageTotal: number;
   // actions
   resetRun: (runId?: string) => void;
   addActive: (activationId: string, nodeId: string) => void;
@@ -42,6 +43,7 @@ export type EngineState = {
   setLatestOutput: (nodeId: string, output: unknown) => void;
   markCompleted: (ok: boolean) => void;
   incError: () => void;
+  addUsage: (usage: any) => void;
 };
 
 export const useEngineStore = create<EngineState>((set) => ({
@@ -51,6 +53,7 @@ export const useEngineStore = create<EngineState>((set) => ({
   latestInputByNode: {},
   latestOutputByNode: {},
   trace: { nodes: {}, roots: [] },
+  tokenUsageTotal: 0,
   resetRun: (runId) =>
     set(() => ({
       run: {
@@ -64,6 +67,7 @@ export const useEngineStore = create<EngineState>((set) => ({
       latestInputByNode: {},
       latestOutputByNode: {},
       trace: { nodes: {}, roots: [] },
+      tokenUsageTotal: 0,
     })),
   addActive: (activationId, nodeId) =>
     set((s) => {
@@ -118,4 +122,19 @@ export const useEngineStore = create<EngineState>((set) => ({
   markCompleted: (ok) =>
     set((s) => ({ run: { ...s.run, status: ok ? "completed" : "failed", endedAt: Date.now() } })),
   incError: () => set((s) => ({ run: { ...s.run, errorCount: s.run.errorCount + 1 } })),
+  addUsage: (usage) =>
+    set((s) => {
+      try {
+        if (!usage || typeof usage !== "object") return {} as Partial<EngineState>;
+        const u = usage as any;
+        const total =
+          typeof u.total_tokens === "number"
+            ? u.total_tokens
+            : Number(u.input_tokens || 0) + Number(u.output_tokens || 0);
+        if (!Number.isFinite(total)) return {} as Partial<EngineState>;
+        return { tokenUsageTotal: (s.tokenUsageTotal || 0) + total } as Partial<EngineState>;
+      } catch {
+        return {} as Partial<EngineState>;
+      }
+    }),
 }));

@@ -2,7 +2,7 @@ import type { Node } from "reactflow";
 import type { NodeData } from "../types";
 import defaults from "../default.json";
 
-export type NewNodeType = "entry" | "llm" | "router" | "mcp" | "end";
+export type NewNodeType = "entry" | "llm" | "switch" | "mcp" | "end";
 
 export function makeDefaultNode(type: NewNodeType, idx: number): Node<NodeData> {
   const id = `${type}-${Date.now()}`;
@@ -23,8 +23,11 @@ export function makeDefaultNode(type: NewNodeType, idx: number): Node<NodeData> 
           outputPointers: (defaults as any)?.llm?.outputPointers,
         },
       } as any;
-    case "router":
-      return { ...base, data: { name: "Router", branches: ["a", "b"] } } as any;
+    case "switch":
+      return {
+        ...base,
+        data: { name: "Switch", threshold: 0.5 },
+      } as any;
     case "mcp":
       return { ...base, data: { name: "MCP", url: "http://localhost:9000" } } as any;
     case "end":

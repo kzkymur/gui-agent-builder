@@ -30,9 +30,11 @@ export type LLMData = {
   inputs?: LLMInput[];
 };
 
-export type RouterData = {
+export type SwitchData = {
   name: string;
-  branches: string[];
+  // Two-input gate: numeric/boolean 'gate' controls whether 'signal' passes through.
+  // Gate is coerced to a number (false→0, true→1). Passes when gate >= threshold.
+  threshold?: number; // default 0.5, range 0..1
 };
 
 export type MCPData = {
@@ -47,7 +49,7 @@ export type EndData = {
   value?: string;
 };
 
-export type NodeData = Partial<EntryData & LLMData & RouterData & MCPData & EndData> & {
+export type NodeData = Partial<EntryData & LLMData & SwitchData & MCPData & EndData> & {
   name?: string;
 };
 

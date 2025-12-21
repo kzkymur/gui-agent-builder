@@ -16,7 +16,7 @@
 
 - `src/App.tsx` — app shell, state, sidebar editor, persistence wiring.
 - `src/graph/GraphCanvas.tsx` — React Flow wrapper (nodes, edges, selection).
-- `src/nodes/*` — renderers: `entry`, `llm`, `router`, `mcp`, `end`.
+- `src/nodes/*` — renderers: `entry`, `llm`, `switch`, `mcp`, `end`.
 - `src/db/sqlite.ts` — sql.js + LocalStorage snapshot.
 - `src/types.ts` — node data shapes.
 
@@ -24,7 +24,7 @@
 
 - `entry` → `name`, `inputs: { key: string, value?: string }[]`.
 - `llm` → `name`, `provider`, `model`, `temperature?`, `maxTokens?`, `system?`, `mcpServers: NodeID[]`, `inputs: { key: string, description: string }[]`, `responseSchema`, `outputPointers: JSONPointer[]`.
-- `router` → `name`, `branches: string[]`.
+- `switch` → `name`, `threshold?` (0..1, default 0.5).
 - `mcp` → `name`, `url`, `token?`.
 - `end` → `name`.
 
@@ -57,12 +57,13 @@
 - Support removing the selected node via the Delete key (and update edges accordingly).
 - LLM sidebar includes a checkbox list to choose MCP servers from existing MCP nodes (by node id/name).
 - Entry sidebar includes an editor for key/value rows.
-- Header includes an `API Key` input. Value persists to sqlite (`settings.api_key`) and is used for LLM requests. Env var `VITE_CLAUDE_API_KEY` remains a fallback when the field is empty.
+- Header includes API Key inputs on the right, one per provider returned by `GET /providers`. Keys persist to sqlite in a single record (`settings.api_keys` JSON). Adapters use the exact provider's key when present; `settings.api_key` remains a legacy fallback and `VITE_CLAUDE_API_KEY` is a final fallback.
 - Sidebar is width‑resizable (drag the thin vertical divider between the graph and the sidebar). A small chevron button lives on the divider to hide/show the sidebar. Width and visibility persist to sqlite (`settings.sidebar_width`, `settings.sidebar_visible`).
 - Sidebar occupies full height and scrolls internally; graph and sidebar share the viewport vertically under a constant-height footer.
+- Footer is vertically resizable via a horizontal divider between the graph and footer. Height persists in settings (`settings.footer_height`). Double‑click the divider to reset to 200px.
 - Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
 - Sidebar sections for LLM nodes:
-- "LLM Settings": provider, model, system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
+- "LLM Settings": provider (dropdown populated from `GET /providers`), model, temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).
 - "Outputs": JSON Pointers only (`outputPointers`). The Response Schema is not part of the Outputs section.
 
@@ -105,5 +106,5 @@ er, used as a label and variable name.
 - State is global, ephemeral (Zustand). SQLite is config‑only. No queues: a node’s completion immediately propagates to its targets and invokes them asynchronously.
 - Store (to implement `src/engine/store.ts`): `{ run, activeRunning: Map<actId,{nodeId,startedAt}>, inputBufByNode, latestInputByNode, latestOutputByNode, trace:{nodes,roots} }`.
 - Ignite: build `{key:value}` from Entry nodes, write latest/input buffers, append root trace nodes, and call `runNode(entryId)` immediately.
-- runNode: if already running, return; snapshot `inputBufByNode[nodeId]`, write a trace start, await adapter (Entry/LLM/Router/End), then update trace and latestOutput and call `propagate`.
-- propagate: for each outgoing edge, derive values by handle rules (Entry out‑i, LLM out‑i via `outputPointers[i]`, Router `br-<name>`), merge into `inputBufByNode[target]`, coalesce same‑tick triggers, and schedule `runNode(target)` via microtask; finalize when none are running/scheduled.
+- runNode: if already running, return; snapshot `inputBufByNode[nodeId]`, write a trace start, await adapter (Entry/LLM/Switch/End), then update trace and latestOutput and call `propagate`.
+- propagate: for each outgoing edge, derive values by handle rules (Entry out‑i, LLM out‑i via `outputPointers[i]`, Switch forwards `{ value: signal }` only when its gate ≥ threshold), merge into `inputBufByNode[target]`, coalesce same‑tick triggers, and schedule `runNode(target)` via microtask; finalize when none are running/scheduled.

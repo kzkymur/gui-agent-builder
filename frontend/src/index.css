@@ -54,14 +54,12 @@ body {
   background: #0e0e10;
 }
 .main-left {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1fr 6px 200px; /* default; overridden inline for resizable footer */
   min-height: 0;
 }
 .graph {
-  flex: 0 0 auto;
   min-height: 0; /* allow ReactFlow to size */
-  flex-grow: 1;
 }
 .node {
   position: relative;
@@ -264,8 +262,16 @@ textarea.rt-TextAreaInput {
   color: var(--muted);
   font-size: 12px;
   display: block;
-  height: 200px; /* fixed footer height as requested */
+  height: 100%; /* grid row height controls size */
   overflow: auto; /* scroll if content exceeds */
+}
+
+.h-resizer {
+  height: 6px;
+  cursor: row-resize;
+  background: #15151a;
+  border-top: 1px solid #222;
+  border-bottom: 1px solid #222;
 }
 
 /* Node type coloring */
@@ -285,11 +291,11 @@ textarea.rt-TextAreaInput {
   color: #86efac;
 }
 
-.node--router {
+.node--switch {
   border-color: rgba(245, 158, 11, 0.6);
   background: linear-gradient(180deg, #20170a, #1a1309);
 }
-.node--router .node__title {
+.node--switch .node__title {
   color: #fcd34d;
 }
 
@@ -322,6 +328,9 @@ textarea.rt-TextAreaInput {
   border-width: 2px;
   margin: 2px 0;
 }
+
+.handle-row { display: flex; align-items: center; gap: 8px; }
+.handle-label { color: var(--muted); font-size: 11px; }
 
 /* Improve edge attachment contrast on dark backgrounds */
 .react-flow__edge-path,

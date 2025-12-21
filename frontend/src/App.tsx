@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@radix-ui/themes";
+import Header from "./components/Header";
 import { useEngineStore } from "./engine/store";
 import "reactflow/dist/style.css";
 import "./index.css";
 import type { Edge, Node } from "reactflow";
-import { backendClient } from "./engine/backendClient";
 import { useSettingsStore } from "./engine/settings";
 import { logGraphSnapshot } from "./engine/graph";
 import { ignite } from "./engine/runner";
@@ -43,13 +42,15 @@ export default function App() {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
   const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
-  const apiKey = useSettingsStore((s) => s.apiKey);
-  const setApiKey = useSettingsStore((s) => s.setApiKey);
+  const apiKeys = useSettingsStore((s) => s.apiKeys);
+  const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
   const loadSettings = useSettingsStore((s) => s.loadFromDB);
   const sidebarWidth = useSettingsStore((s) => s.sidebarWidth);
   const sidebarVisible = useSettingsStore((s) => s.sidebarVisible);
   const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth);
   const setSidebarVisible = useSettingsStore((s) => s.setSidebarVisible);
+  const footerHeight = useSettingsStore((s) => s.footerHeight);
+  const setFooterHeight = useSettingsStore((s) => s.setFooterHeight);
 
   // Keep App thin; persistence lives in useGraph()
 
@@ -90,6 +91,19 @@ export default function App() {
     return parts;
   }, [nodes, latestOutputByNode]);
 
+  const run = useEngineStore((s) => s.run);
+  const tokenUsageTotal = useEngineStore((s) => s.tokenUsageTotal);
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    if (run.status !== "running" || !run.startedAt) return;
+    const t = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(t);
+  }, [run.status, run.startedAt]);
+  const durationMs = run.startedAt
+    ? Math.max(0, (run.endedAt ?? now) - run.startedAt)
+    : undefined;
+  const durationLabel = durationMs != null ? `${(durationMs / 1000).toFixed(2)}s` : "—";
+
   // Direct ignite: simple and explicit, no globals
   const runFlow = () => ignite(nodes, edges);
 
@@ -103,101 +117,18 @@ export default function App() {
     return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
+  // header manages provider list for API keys dropdown
+
   return (
     <div className="app">
-      <header className="app__header">
-        LLM Flow
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            marginLeft: 12,
-          }}
-        >
-          <label style={{ fontSize: 12, color: "var(--muted)" }} htmlFor="apiKey">
-            API Key:
-          </label>
-          <input
-            id="apiKey"
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Enter provider API key"
-            style={{
-              background: "#0f0f12",
-              border: "1px solid #2a2a2e",
-              color: "var(--fg)",
-              borderRadius: 6,
-              padding: "4px 8px",
-              width: 260,
-            }}
-          />
-          <label style={{ fontSize: 12, color: "var(--muted)" }} htmlFor="newNodeType">
-            New:
-          </label>
-          <select
-            id="newNodeType"
-            value={newNodeType}
-            onChange={(e) => setNewNodeType(e.target.value as any)}
-            disabled={isBusy}
-            style={{
-              background: "#0f0f12",
-              border: "1px solid #2a2a2e",
-              color: "var(--fg)",
-              borderRadius: 6,
-              padding: "4px 6px",
-            }}
-          >
-            <option value="entry">Entry</option>
-            <option value="llm">LLM</option>
-            <option value="router">Router</option>
-            <option value="mcp">MCP</option>
-            <option value="end">End</option>
-          </select>
-          <Button onClick={addNode} disabled={isBusy}>Add Node</Button>
-          <Button variant="soft" onClick={() => logGraphSnapshot(nodes, edges)} disabled={isBusy}>Log Graph</Button>
-          <Button
-            onClick={runFlow}
-            disabled={isBusy}
-          >
-            Run
-          </Button>
-          <Button
-            onClick={() => {
-              try {
-                const { nodes: nn, edges: ee } = loadGraph();
-                // eslint-disable-next-line no-console
-                console.log("[LLM-Flow] DB rows", { nodes: nn, edges: ee });
-              } catch (e) {
-                // eslint-disable-next-line no-console
-                console.error("[LLM-Flow] Failed to read DB", e);
-              }
-            }}
-            disabled={isBusy}
-          >
-            Log DB
-          </Button>
-          <Button
-            onClick={async () => {
-              try {
-                // Typed call to backend's health endpoint
-                const res = await backendClient.GET("/health");
-                // eslint-disable-next-line no-console
-                console.log("[LLM-Flow] /health", res.data ?? res.error);
-              } catch (err) {
-                // eslint-disable-next-line no-console
-                console.error("[LLM-Flow] backend call failed", err);
-              }
-            }}
-            disabled={isBusy}
-          >
-            Ping Backend
-          </Button>
-        </div>
-      </header>
+      <Header
+        isBusy={isBusy}
+        newNodeType={newNodeType}
+        onChangeNewNodeType={(v) => setNewNodeType(v as any)}
+        onAddNode={addNode}
+      />
       <main className="app__main" style={{ gridTemplateColumns: `1fr 6px ${sidebarVisible ? `${sidebarWidth}px` : '0px'}` }}>
-        <div className="main-left">
+        <div className="main-left" style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}>
           <div className="graph">
             <GraphCanvas
               nodes={nodes}
@@ -211,18 +142,43 @@ export default function App() {
               onSelectNode={setSelected}
             />
           </div>
+          <div
+            className="h-resizer"
+            title="Drag to resize footer; double‑click to reset"
+            onDoubleClick={() => setFooterHeight(200)}
+            onMouseDown={(e) => {
+              const startY = e.clientY;
+              const startH = footerHeight;
+              const onMove = (ev: MouseEvent) => {
+                const dy = ev.clientY - startY;
+                // Invert so the divider follows the cursor: up = larger footer, down = smaller
+                setFooterHeight(startH - dy);
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          />
           <footer className="app__footer" aria-live="polite">
-            {endSummaries.length ? (
-              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", overflowX: "auto" }}>
-                {endSummaries.map((md, i) => (
-                  <div key={i} style={{ minWidth: 0 }}>
-                    <MarkdownView text={md} />
-                  </div>
-                ))}
+            <div style={{ display: "flex", gap: 24, alignItems: "flex-start", overflowX: "auto" }}>
+              <div style={{ whiteSpace: "nowrap", color: "var(--muted)" }}>
+                Tokens: <strong>{tokenUsageTotal || 0}</strong> · Time: <strong>{durationLabel}</strong>
               </div>
-            ) : (
-              "Run the flow; End node outputs will appear here"
-            )}
+              {endSummaries.length ? (
+                <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                  {endSummaries.map((md, i) => (
+                    <div key={i} style={{ minWidth: 0 }}>
+                      <MarkdownView text={md} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>Run the flow; End node outputs will appear here</div>
+              )}
+            </div>
           </footer>
         </div>
         <div

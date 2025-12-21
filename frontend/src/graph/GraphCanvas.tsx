@@ -20,7 +20,7 @@ import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
 import MCPNode from "../nodes/MCPNode";
-import RouterNode from "../nodes/RouterNode";
+import SwitchNode from "../nodes/SwitchNode";
 import type { NodeData } from "../types";
 
 type Props = {
@@ -44,7 +44,7 @@ export default function GraphCanvas({
     () => ({
       entry: EntryNode,
       llm: LLMNode,
-      router: RouterNode,
+      switch: SwitchNode,
       mcp: MCPNode,
       end: EndNode,
     }),

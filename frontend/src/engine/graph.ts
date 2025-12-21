@@ -35,11 +35,11 @@ function handleLabelFor(
       }
       break;
     }
-    case "router": {
-      // router source handles: br-<branch>
-      if (dir === "source" && handleId.startsWith("br-")) {
-        return handleId.substring(3);
-      }
+    case "switch": {
+      if (dir === "source" && handleId === "out-true") return "pass";
+      if (dir === "source" && handleId === "out-false") return "else";
+      if (dir === "target" && handleId === "in-gate") return "gate";
+      if (dir === "target" && handleId === "in-signal") return "signal";
       break;
     }
     default:

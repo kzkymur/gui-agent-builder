@@ -1,6 +1,6 @@
 import type { Edge, Node } from "reactflow";
 import type { EntryData, LLMData, NodeData } from "../types";
-import { evalEnd, evalEntry, evalLLM, evalRouter } from "./adapters";
+import { evalEnd, evalEntry, evalLLM, evalSwitch } from "./adapters";
 import { useEngineStore } from "./store";
 
 const scheduled = new Set<string>();
@@ -82,7 +82,7 @@ async function runNode(
     useEngineStore.getState().addActive(traceId, nodeId);
     if (node.type === "entry") output = (await evalEntry(node, input)).output;
     else if (node.type === "llm") output = (await evalLLM(node, input)).output;
-    else if (node.type === "router") output = (await evalRouter(node, input)).output;
+    else if (node.type === "switch") output = (await evalSwitch(node, input)).output;
     else if (node.type === "end") output = (await evalEnd(node, input)).output;
     else output = input;
     useEngineStore.getState().setLatestOutput(nodeId, output);
@@ -138,26 +138,36 @@ async function propagate(
         // Non-LLM target: merge raw value
         nextInput = { ...nextInput, value: val };
       }
-    } else if (source.type === "router") {
-      const handle = e.sourceHandle || "";
-      const branch = handle.startsWith("br-") ? handle.substring(3) : "";
-      const sel =
+    } else if (source.type === "switch") {
+      const pass = Boolean(
         sourceOutput && typeof sourceOutput === "object"
-          ? (sourceOutput as Record<string, unknown>)["selected"]
+          ? (sourceOutput as any).pass
+          : false,
+      );
+      const outHandle = e.sourceHandle || "";
+      if (outHandle === "out-true" && !pass) continue;
+      if (outHandle === "out-false" && pass) continue;
+      const payload =
+        sourceOutput && typeof sourceOutput === "object"
+          ? (sourceOutput as any).payload
           : undefined;
-      const selected = Array.isArray(sel) ? sel.map(String) : [];
-      if (selected.includes(String(branch))) {
-        // forward the current input unchanged
-        nextInput = {
-          ...nextInput,
-          ...(store.latestInputByNode[source.id] || {}),
-        };
-      } else {
-        continue; // skip edge if branch not selected
-      }
+      nextInput = { ...nextInput, value: payload };
     } else if (source.type === "end") {
       // End has no outputs by spec; skip
       continue;
+    }
+
+    // Map by target handle for Switch inputs
+    if (target.type === "switch") {
+      const tgtHandle = e.targetHandle || "";
+      const latestSrc = store.latestInputByNode[source.id] || {};
+      const fromVal = (nextInput as any).value ?? (latestSrc as any).value;
+      if (tgtHandle === "in-gate") {
+        nextInput = { ...nextInput, gate: fromVal };
+      } else if (tgtHandle === "in-signal") {
+        nextInput = { ...nextInput, signal: fromVal };
+      }
+      if ("value" in nextInput) delete (nextInput as any).value;
     }
     store.setInputBuf(target.id, nextInput);
     store.setLatestInput(target.id, nextInput);

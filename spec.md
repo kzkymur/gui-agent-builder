@@ -97,6 +97,6 @@
 | ---------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Entry**  | Accepts one or more user inputs and forwards them unchanged to the next node.                                            |
 | **LLM**    | Performs an LLM call as defined.                                                                                         |
-| **Router** | Has one upstream and multiple downstream connections. Determines the next node(s) based on the upstream LLM’s output.    |
+| **Switch** | Two inputs (gate, signal) and one output. Gate accepts number or boolean (false→0, true→1); forwards signal when gate ≥ threshold (configurable in sidebar). |
 | **MCP**    | Special node representing a Managed Compute Provider. Defined globally; referenced from LLM nodes. No inputs or outputs. |
 | **End**    | Terminal node; has no outputs. Displays its input value in the footer.                                                   |

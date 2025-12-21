@@ -1,16 +1,10 @@
 import React from "react";
-import {
-  Button,
-  Checkbox,
-  IconButton,
-  Text,
-  TextArea,
-  TextField,
-} from "@radix-ui/themes";
+import { Button, Checkbox, IconButton, Text, TextArea, TextField, Select } from "@radix-ui/themes";
 import { useEngineStore } from "../engine/store";
 import type { Node } from "reactflow";
 import type { LLMData, MCPData, NodeData } from "../types";
 import ArrayEditor from "./components/ArrayEditor";
+import { backendClient } from "../engine/backendClient";
 import LLMOutputPointersEditor from "./components/LLMOutputPointersEditor";
 import SchemaEditor from "./components/SchemaEditor";
 
@@ -25,10 +19,24 @@ export default function NodeEditor({
 }) {
   const [draft, setDraft] = React.useState<NodeData | null>(node?.data ?? null);
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
+  const [providerOptions, setProviderOptions] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     setDraft(node?.data ?? null);
   }, [node?.id]);
+
+  // Load providers for dropdown
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await backendClient.GET("/providers");
+        const ids = (res.data?.providers ?? []).map((p: any) => String(p.id));
+        setProviderOptions(ids);
+      } catch {
+        setProviderOptions([]);
+      }
+    })();
+  }, []);
 
   React.useEffect(() => {
     if (!node || !draft) return;
@@ -70,18 +78,21 @@ export default function NodeEditor({
             </summary>
             <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
               <label className="field">
-                <Text as="span" weight="medium">
-                  Provider
-                </Text>
-                <TextField.Root
+                <Text as="span" weight="medium">Provider</Text>
+                <Select.Root
                   value={(draft as LLMData).provider ?? ""}
-                  onChange={(e) =>
-                    update({
-                      provider: (e.target as HTMLInputElement).value,
-                    } as Partial<LLMData>)
-                  }
+                  onValueChange={(val) => update({ provider: val } as Partial<LLMData>)}
                   disabled={isBusy}
-                />
+                >
+                  <Select.Trigger placeholder="Select provider…" />
+                  <Select.Content>
+                    {providerOptions.map((pid) => (
+                      <Select.Item key={pid} value={pid}>
+                        {pid}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
               </label>
               <label className="field">
                 <Text as="span" weight="medium">
@@ -101,25 +112,40 @@ export default function NodeEditor({
                 <Text as="span" weight="medium">
                   Temperature
                 </Text>
-                <TextField.Root
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="2"
-                  value={
-                    typeof (draft as LLMData).temperature === "number"
-                      ? String((draft as LLMData).temperature)
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const v = (e.target as HTMLInputElement).value;
-                    update({
-                      temperature: v === "" ? undefined : Number(v),
-                    } as Partial<LLMData>);
-                  }}
-                  disabled={isBusy}
-                />
-                <div className="help">0–2 (empty = provider default)</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={
+                      typeof (draft as LLMData).temperature === "number"
+                        ? (draft as LLMData).temperature
+                        : 0.7
+                    }
+                    onChange={(e) =>
+                      update({ temperature: Number(e.target.value) } as Partial<LLMData>)
+                    }
+                    disabled={isBusy}
+                    style={{ flex: 1 }}
+                  />
+                  <code style={{ minWidth: 42, textAlign: "right" }}>
+                    {typeof (draft as LLMData).temperature === "number"
+                      ? (draft as LLMData).temperature!.toFixed(2)
+                      : "—"}
+                  </code>
+                  <Button
+                    type="button"
+                    size="1"
+                    variant="soft"
+                    onClick={() => update({ temperature: undefined } as Partial<LLMData>)}
+                    disabled={isBusy}
+                    title="Reset to model default"
+                  >
+                    Reset
+                  </Button>
+                </div>
+                <div className="help">0–1 (Reset = provider default)</div>
               </label>
               <label className="field">
                 <Text as="span" weight="medium">
@@ -265,13 +291,36 @@ export default function NodeEditor({
           </label>
         </>
       )}
-      {node.type === "router" && (
-        <ArrayEditor
-          label="Branches"
-          values={(draft as any).branches ?? []}
-          onChange={(vals) => update({ branches: vals } as any)}
-          placeholder="branch name"
-        />
+      {node.type === "switch" && (
+        <>
+          <div className="section-title">Switch Condition</div>
+          <label className="field">
+            <Text as="span" weight="medium">Threshold</Text>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={
+                  typeof (draft as any).threshold === "number" ? (draft as any).threshold : 0.5
+                }
+                onChange={(e) => update({ threshold: Number(e.target.value) } as any)}
+                disabled={isBusy}
+                aria-label="Threshold"
+              />
+              <Text as="span" weight="medium" style={{ minWidth: 44, textAlign: "right" }}>
+                {(
+                  typeof (draft as any).threshold === "number"
+                    ? (draft as any).threshold
+                    : 0.5
+                ).toFixed(2)}
+              </Text>
+              {/* numeric input removed per request; slider + label only */}
+            </div>
+            <div className="help">Gate (boolean→0/1, number) passes when gate ≥ threshold.</div>
+          </label>
+        </>
       )}
       {node.type === "end" && (
         <label className="field">
