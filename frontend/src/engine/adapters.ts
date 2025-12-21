@@ -1,6 +1,7 @@
 import type { Node } from "reactflow";
 import type { LLMData, NodeData, RouterData } from "../types";
 import { backendClient } from "./backendClient";
+import { getApiKey } from "./settings";
 
 export type EvalResult = { output: unknown };
 
@@ -28,8 +29,8 @@ export async function evalLLM(
     provider: data.provider,
     model: data.model,
     messages,
-    temperature: 0.5,
-    max_tokens: 1024,
+    temperature: typeof data.temperature === "number" ? data.temperature : undefined,
+    max_tokens: typeof data.maxTokens === "number" ? data.maxTokens : undefined,
     retries: 2,
     mcp: { servers: [] },
   };
@@ -44,7 +45,7 @@ export async function evalLLM(
     const res = await backendClient.POST("/llm/invoke", {
       body,
       headers: {
-        "x-provider-api-key": import.meta.env.VITE_CLAUDE_API_KEY,
+        "x-provider-api-key": getApiKey() || (import.meta as any).env?.VITE_CLAUDE_API_KEY,
       },
     });
     if (res.error) throw new Error("backend error");

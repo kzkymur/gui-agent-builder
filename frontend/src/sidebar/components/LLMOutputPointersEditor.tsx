@@ -1,5 +1,6 @@
 import React from "react";
 import { Button, IconButton, Text, TextField } from "@radix-ui/themes";
+import { useEngineStore } from "../../engine/store";
 
 function isValidJsonPointer(ptr: string): boolean {
   if (typeof ptr !== "string") return false;
@@ -31,6 +32,7 @@ export default function LLMOutputPointersEditor({
     onChange(next);
   };
   const add = () => onChange([...(list ?? []), "/result"]);
+  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
 
   return (
     <div className="field">
@@ -50,6 +52,7 @@ export default function LLMOutputPointersEditor({
                 value={ptr ?? ""}
                 onChange={(e) => setPtr(idx, (e.target as HTMLInputElement).value)}
                 aria-invalid={ptr ? !isValidJsonPointer(ptr) : false}
+                disabled={isBusy}
               />
               <IconButton
                 type="button"
@@ -58,6 +61,7 @@ export default function LLMOutputPointersEditor({
                 size="1"
                 onClick={() => remove(idx)}
                 aria-label={`Remove output ${idx + 1}`}
+                disabled={isBusy}
               >
                 −
               </IconButton>
@@ -70,7 +74,7 @@ export default function LLMOutputPointersEditor({
           </div>
         ))}
         <div>
-          <Button type="button" onClick={add} variant="solid">
+          <Button type="button" onClick={add} variant="solid" disabled={isBusy}>
             Add Output
           </Button>
         </div>

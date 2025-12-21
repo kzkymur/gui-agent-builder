@@ -68,6 +68,18 @@ function ensureSchema(db: Database) {
       COMMIT;
     `);
   }
+  // v3: settings table for user preferences and secrets (e.g., API keys)
+  if (v < 3) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      );
+      PRAGMA user_version = 3;
+      COMMIT;
+    `);
+  }
 }
 
 export type PersistNode = { id: string; type: string; x: number; y: number; data: unknown };
@@ -133,5 +145,25 @@ export function saveGraph(nodes: PersistNode[], edges: PersistEdge[]) {
   eStmt.free();
 
   DB.exec("COMMIT");
+  exportAndPersist();
+}
+
+export function loadSettings(): Record<string, string> {
+  if (!DB) throw new Error("DB not initialized");
+  const res = DB.exec("SELECT key, value FROM settings");
+  const out: Record<string, string> = {};
+  if (res.length) {
+    for (const [k, v] of res[0].values) {
+      out[String(k)] = String(v ?? "");
+    }
+  }
+  return out;
+}
+
+export function saveSetting(key: string, value: string): void {
+  if (!DB) throw new Error("DB not initialized");
+  const stmt = DB.prepare("INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value");
+  stmt.run([key, value]);
+  stmt.free();
   exportAndPersist();
 }

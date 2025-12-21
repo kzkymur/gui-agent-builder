@@ -1,0 +1,13 @@
+{
+  "llm": {
+    "responseSchema": {
+      "type": "object",
+      "properties": {
+        "result": { "type": "string" }
+      },
+      "required": ["result"]
+    },
+    "outputPointers": ["/result"]
+  }
+}
+

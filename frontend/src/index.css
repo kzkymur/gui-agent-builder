@@ -17,8 +17,8 @@ body,
 }
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple
-    Color Emoji, Segoe UI Emoji;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, Apple Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
   background: var(--bg);
   color: var(--fg);
 }
@@ -37,7 +37,7 @@ body {
 }
 .app__main {
   display: grid;
-  grid-template-columns: 1fr 380px; /* left column (graph+footer), right column (sidebar) */
+  grid-template-columns: 1fr 380px; /* default; overridden inline when resizable is active */
   gap: 0;
   min-height: 0; /* allow children to shrink */
   height: 100%;
@@ -59,8 +59,9 @@ body {
   min-height: 0;
 }
 .graph {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0; /* allow ReactFlow to size */
+  flex-grow: 1;
 }
 .node {
   position: relative;
@@ -161,6 +162,10 @@ body {
 .field textarea::placeholder {
   color: #666a;
 }
+.rt-TextAreaRoot .rt-TextAreaInput,
+textarea.rt-TextAreaInput {
+  resize: vertical;
+}
 .field input:focus,
 .field textarea:focus,
 .sidebar select:focus,
@@ -188,6 +193,30 @@ body {
   display: flex;
   flex-direction: column; /* fill full height */
 }
+.v-resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: #15151a;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
+  position: relative;
+}
+.v-resizer__toggle {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid #2a2a2e;
+  background: #1a1a1f;
+  color: #e6e6e6;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.v-resizer__toggle:hover { background: #212126; }
 .sidebar select[multiple] {
   background: #0f0f12;
   border: 1px solid #2a2a2e;

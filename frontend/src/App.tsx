@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@radix-ui/themes";
+import { useEngineStore } from "./engine/store";
 import "reactflow/dist/style.css";
 import "./index.css";
 import type { Edge, Node } from "reactflow";
 import { backendClient } from "./engine/backendClient";
+import { useSettingsStore } from "./engine/settings";
 import { logGraphSnapshot } from "./engine/graph";
 import { ignite } from "./engine/runner";
-import { useEngineStore } from "./engine/store";
 import GraphCanvas from "./graph/GraphCanvas";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
 import type { LLMData, MCPData, NodeData } from "./types";
+import MarkdownView from "./components/MarkdownView";
 import { makeDefaultNode, type NewNodeType } from "./graph/factory";
 import { loadGraph } from "./db/sqlite";
 
@@ -38,8 +40,16 @@ function useDeleteSelected(
 
 export default function App() {
   const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
+  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
   const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
+  const apiKey = useSettingsStore((s) => s.apiKey);
+  const setApiKey = useSettingsStore((s) => s.setApiKey);
+  const loadSettings = useSettingsStore((s) => s.loadFromDB);
+  const sidebarWidth = useSettingsStore((s) => s.sidebarWidth);
+  const sidebarVisible = useSettingsStore((s) => s.sidebarVisible);
+  const setSidebarWidth = useSettingsStore((s) => s.setSidebarWidth);
+  const setSidebarVisible = useSettingsStore((s) => s.setSidebarVisible);
 
   // Keep App thin; persistence lives in useGraph()
 
@@ -52,25 +62,30 @@ export default function App() {
 
   useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
 
+  // Load settings from DB when ready
+  useEffect(() => {
+    if (!dbReady) return;
+    loadSettings();
+  }, [dbReady, loadSettings]);
+
   const latestOutputByNode = useEngineStore((s) => s.latestOutputByNode);
   const endSummaries = useMemo(() => {
     const ends = nodes.filter((n) => n.type === "end");
     const parts: string[] = [];
     for (const n of ends) {
-      const val = latestOutputByNode[n.id];
+      let val: any = latestOutputByNode[n.id];
+      // Unwrap common End-node shape { value: ... } for footer brevity
+      if (val && typeof val === "object" && !Array.isArray(val) && "value" in val) {
+        val = (val as any).value;
+      }
       if (typeof val === "undefined") continue;
-      const pretty =
-        typeof val === "string"
-          ? val
-          : (() => {
-              try {
-                return JSON.stringify(val);
-              } catch {
-                return String(val);
-              }
-            })();
+      let pretty: string;
+      if (typeof val === "string") pretty = val;
+      else {
+        try { pretty = JSON.stringify(val, null, 2); } catch { pretty = String(val); }
+      }
       const name = (n.data as any)?.name || "End";
-      parts.push(`${name}: ${pretty}`);
+      parts.push(`${name}:\n\n${pretty}`);
     }
     return parts;
   }, [nodes, latestOutputByNode]);
@@ -100,6 +115,24 @@ export default function App() {
             marginLeft: 12,
           }}
         >
+          <label style={{ fontSize: 12, color: "var(--muted)" }} htmlFor="apiKey">
+            API Key:
+          </label>
+          <input
+            id="apiKey"
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter provider API key"
+            style={{
+              background: "#0f0f12",
+              border: "1px solid #2a2a2e",
+              color: "var(--fg)",
+              borderRadius: 6,
+              padding: "4px 8px",
+              width: 260,
+            }}
+          />
           <label style={{ fontSize: 12, color: "var(--muted)" }} htmlFor="newNodeType">
             New:
           </label>
@@ -107,6 +140,7 @@ export default function App() {
             id="newNodeType"
             value={newNodeType}
             onChange={(e) => setNewNodeType(e.target.value as any)}
+            disabled={isBusy}
             style={{
               background: "#0f0f12",
               border: "1px solid #2a2a2e",
@@ -121,10 +155,11 @@ export default function App() {
             <option value="mcp">MCP</option>
             <option value="end">End</option>
           </select>
-          <Button onClick={addNode}>Add Node</Button>
-          <Button variant="soft" onClick={() => logGraphSnapshot(nodes, edges)}>Log Graph</Button>
+          <Button onClick={addNode} disabled={isBusy}>Add Node</Button>
+          <Button variant="soft" onClick={() => logGraphSnapshot(nodes, edges)} disabled={isBusy}>Log Graph</Button>
           <Button
             onClick={runFlow}
+            disabled={isBusy}
           >
             Run
           </Button>
@@ -139,6 +174,7 @@ export default function App() {
                 console.error("[LLM-Flow] Failed to read DB", e);
               }
             }}
+            disabled={isBusy}
           >
             Log DB
           </Button>
@@ -154,12 +190,13 @@ export default function App() {
                 console.error("[LLM-Flow] backend call failed", err);
               }
             }}
+            disabled={isBusy}
           >
             Ping Backend
           </Button>
         </div>
       </header>
-      <main className="app__main">
+      <main className="app__main" style={{ gridTemplateColumns: `1fr 6px ${sidebarVisible ? `${sidebarWidth}px` : '0px'}` }}>
         <div className="main-left">
           <div className="graph">
             <GraphCanvas
@@ -175,12 +212,60 @@ export default function App() {
             />
           </div>
           <footer className="app__footer" aria-live="polite">
-            {endSummaries.length
-              ? endSummaries.join("  |  ")
-              : "Run the flow; End node outputs will appear here"}
+            {endSummaries.length ? (
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", overflowX: "auto" }}>
+                {endSummaries.map((md, i) => (
+                  <div key={i} style={{ minWidth: 0 }}>
+                    <MarkdownView text={md} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              "Run the flow; End node outputs will appear here"
+            )}
           </footer>
         </div>
-        <aside className="sidebar" aria-label="Sidebar">
+        <div
+          className="v-resizer"
+          onDoubleClick={() => setSidebarVisible(!sidebarVisible)}
+          onMouseDown={(e) => {
+            if (!sidebarVisible) return;
+            const startX = e.clientX;
+            const startW = sidebarWidth;
+            const onMove = (ev: MouseEvent) => {
+              const dx = startX - ev.clientX; // dragging left grows sidebar
+              setSidebarWidth(startW + dx);
+            };
+            const onUp = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          }}
+        >
+          <button
+            className="v-resizer__toggle"
+            title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+            aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSidebarVisible(!sidebarVisible);
+            }}
+          >
+            {sidebarVisible ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <aside className="sidebar" aria-label="Sidebar" style={{ width: sidebarVisible ? `${sidebarWidth}px` : 0, display: sidebarVisible ? 'flex' : 'none' }}>
           {(() => {
             const liveSelected = selected
               ? (nodes.find((n) => n.id === selected.id) ?? null)

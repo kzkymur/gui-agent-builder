@@ -48,27 +48,31 @@ export default function GraphCanvas({
       mcp: MCPNode,
       end: EndNode,
     }),
-    [],
+    []
   );
 
   const onChangeNodes: OnNodesChange = useCallback(
     (changes) => {
-      const next = applyNodeChanges(changes, nodes as any) as unknown as Node<NodeData>[];
+      const next = applyNodeChanges(
+        changes,
+        nodes as any
+      ) as unknown as Node<NodeData>[];
       onNodesChange(next);
     },
-    [nodes, onNodesChange],
+    [nodes, onNodesChange]
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
     (changes) => {
       const next = changes.reduce<Edge[]>((acc, change) => {
-        if (change.type === "remove") return acc.filter((e) => e.id !== change.id);
+        if (change.type === "remove")
+          return acc.filter((e) => e.id !== change.id);
         // Other edge change types are rare here; keep acc by default
         return acc;
       }, edges);
       onEdgesChange(next);
     },
-    [edges, onEdgesChange],
+    [edges, onEdgesChange]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -83,14 +87,14 @@ export default function GraphCanvas({
       const next = addEdge(connection, edges);
       onEdgesChange(next as unknown as Edge[]);
     },
-    [nodes, edges, onEdgesChange],
+    [nodes, edges, onEdgesChange]
   );
 
   const onSelection = useCallback(
     (elements: { nodes: Node<NodeData>[] }) => {
       onSelectNode(elements.nodes[0] ?? null);
     },
-    [onSelectNode],
+    [onSelectNode]
   );
 
   return (
@@ -106,7 +110,7 @@ export default function GraphCanvas({
         fitView
         selectionMode={SelectionMode.Partial}
       >
-        <MiniMap pannable zoomable />
+        <MiniMap pannable zoomable style={{ width: 120, height: 80 }} />
         <Controls showInteractive={false} />
         <Background />
       </ReactFlow>

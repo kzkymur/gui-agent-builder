@@ -1,5 +1,6 @@
 import type { Node } from "reactflow";
 import type { NodeData } from "../types";
+import defaults from "../default.json";
 
 export type NewNodeType = "entry" | "llm" | "router" | "mcp" | "end";
 
@@ -14,7 +15,14 @@ export function makeDefaultNode(type: NewNodeType, idx: number): Node<NodeData> 
     case "entry":
       return { ...base, data: { name: "Entry", inputs: [{ key: "user_input", value: "" }] } } as any;
     case "llm":
-      return { ...base, data: { name: "LLM" } } as any;
+      return {
+        ...base,
+        data: {
+          name: "LLM",
+          responseSchema: (defaults as any)?.llm?.responseSchema,
+          outputPointers: (defaults as any)?.llm?.outputPointers,
+        },
+      } as any;
     case "router":
       return { ...base, data: { name: "Router", branches: ["a", "b"] } } as any;
     case "mcp":
@@ -24,4 +32,3 @@ export function makeDefaultNode(type: NewNodeType, idx: number): Node<NodeData> 
       return { ...base, data: { name: "End" } } as any;
   }
 }
-

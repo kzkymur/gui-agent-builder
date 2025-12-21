@@ -1,10 +1,12 @@
 import React from "react";
 import { Button } from "@radix-ui/themes";
+import { useEngineStore } from "../engine/store";
 import { Handle, Position } from "reactflow";
 import type { EntryData, RFNodeProps } from "../types";
 import NodeChrome from "./NodeChrome";
 export default function EntryNode({ id, data }: RFNodeProps<EntryData>) {
   const items = data.inputs ?? [{ key: "user_input", value: "" }];
+  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   return (
     <NodeChrome
       nodeId={id}
@@ -20,6 +22,7 @@ export default function EntryNode({ id, data }: RFNodeProps<EntryData>) {
               type="button"
               size="1"
               variant="soft"
+              disabled={isBusy}
               onClick={(e) => {
                 e.stopPropagation();
                 const evt = new CustomEvent("engine:ignite", { detail: { entryId: id } });

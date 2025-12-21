@@ -23,7 +23,7 @@
 **Node Types** (keys → fields used)
 
 - `entry` → `name`, `inputs: { key: string, value?: string }[]`.
-- `llm` → `name`, `provider`, `model`, `system?`, `mcpServers: NodeID[]`, `inputs: { key: string, description: string }[]`, `responseSchema`, `outputPointers: JSONPointer[]`.
+- `llm` → `name`, `provider`, `model`, `temperature?`, `maxTokens?`, `system?`, `mcpServers: NodeID[]`, `inputs: { key: string, description: string }[]`, `responseSchema`, `outputPointers: JSONPointer[]`.
 - `router` → `name`, `branches: string[]`.
 - `mcp` → `name`, `url`, `token?`.
 - `end` → `name`.
@@ -37,6 +37,7 @@
 - Migrations:
   - v2 adds `sourceHandle` and `targetHandle` to `edges` (auto‑migrated on startup).
   - Entry inputs changed from `string[]` to `{ key, value? }[]`; loader normalizes legacy shapes in memory and then persists the new shape on next save.
+  - v3 adds `settings(key PRIMARY KEY, value TEXT)` for app preferences/secrets (e.g., API key). Functions: `loadSettings()`, `saveSetting(key,value)`.
 
 **Behavior**
 
@@ -46,6 +47,7 @@
 - Each output port corresponds to a JSON Pointer (RFC 6901) in `outputPointers` (array). Adding/removing rows adds/removes output ports. No implicit defaults are added.
 - LLM inputs are defined as a list of handles with `key` and `description`.
 - Persistence fidelity: Response Schema is stored as raw string while typing and as parsed JSON object after blur (when valid). Either form is saved to `nodes.data.responseSchema` exactly as edited.
+- Sidebar: A collapsed “Detail Settings” section lets users edit `provider`, `model`, `temperature`, and `maxTokens`. These map 1:1 to backend `/llm/invoke` fields; `maxTokens` is sent as `max_tokens`.
 
 **UI/Interaction Specs**
 
@@ -55,6 +57,8 @@
 - Support removing the selected node via the Delete key (and update edges accordingly).
 - LLM sidebar includes a checkbox list to choose MCP servers from existing MCP nodes (by node id/name).
 - Entry sidebar includes an editor for key/value rows.
+- Header includes an `API Key` input. Value persists to sqlite (`settings.api_key`) and is used for LLM requests. Env var `VITE_CLAUDE_API_KEY` remains a fallback when the field is empty.
+- Sidebar is width‑resizable (drag the thin vertical divider between the graph and the sidebar). A small chevron button lives on the divider to hide/show the sidebar. Width and visibility persist to sqlite (`settings.sidebar_width`, `settings.sidebar_visible`).
 - Sidebar occupies full height and scrolls internally; graph and sidebar share the viewport vertically under a constant-height footer.
 - Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
 - Sidebar sections for LLM nodes:

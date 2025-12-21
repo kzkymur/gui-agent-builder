@@ -31,6 +31,11 @@ export function ignite(nodes: Node<NodeData>[], edges: Edge[], entryIds?: string
     : typeof entryIds === "string" && entryIds
       ? [entryIds]
       : nodes.filter((n) => n.type === "entry").map((n) => n.id);
+  if (ids.length === 0) {
+    // nothing to run; immediately mark as completed
+    store.markCompleted(true);
+    return;
+  }
   for (const id of ids) {
     const node = nodes.find((n) => n.id === id);
     if (!node) continue;
@@ -87,6 +92,8 @@ async function runNode(
       error: String(e?.message || e),
       endedAt: Date.now(),
     });
+    // count run-level errors
+    useEngineStore.getState().incError();
     return;
   } finally {
     // clear running state regardless of outcome

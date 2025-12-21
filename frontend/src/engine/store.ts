@@ -41,6 +41,7 @@ export type EngineState = {
   setLatestInput: (nodeId: string, input: Record<string, unknown>) => void;
   setLatestOutput: (nodeId: string, output: unknown) => void;
   markCompleted: (ok: boolean) => void;
+  incError: () => void;
 };
 
 export const useEngineStore = create<EngineState>((set) => ({
@@ -75,7 +76,15 @@ export const useEngineStore = create<EngineState>((set) => ({
       if (!s.activeRunning.has(activationId)) return {} as Partial<EngineState>;
       const next = new Map(s.activeRunning);
       next.delete(activationId);
-      return { activeRunning: next } as Partial<EngineState>;
+      const base: Partial<EngineState> = { activeRunning: next };
+      if (next.size === 0 && s.run.status === "running") {
+        const ok = (s.run.errorCount ?? 0) === 0;
+        return {
+          ...base,
+          run: { ...s.run, status: ok ? "completed" : "failed", endedAt: Date.now() },
+        } as Partial<EngineState>;
+      }
+      return base as Partial<EngineState>;
     }),
   traceStart: (nodeId, parentId) => {
     const id = `${nodeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -108,4 +117,5 @@ export const useEngineStore = create<EngineState>((set) => ({
     set((s) => ({ latestOutputByNode: { ...s.latestOutputByNode, [nodeId]: output } })),
   markCompleted: (ok) =>
     set((s) => ({ run: { ...s.run, status: ok ? "completed" : "failed", endedAt: Date.now() } })),
+  incError: () => set((s) => ({ run: { ...s.run, errorCount: s.run.errorCount + 1 } })),
 }));

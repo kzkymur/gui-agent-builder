@@ -33,6 +33,8 @@
     - **Name**
     - **Provider** (Anthropic, OpenAI, DeepSeek, …)
     - **Model**
+    - **Temperature** (optional, 0–2)
+    - **Max Tokens** (optional)
     - **System prompt**
     - **Response JSON Schema** (`responseSchema`) — edited in the LLM Settings section of the sidebar. Stored as a plain JSON Schema object (no wrapper fields).
     - **Inputs (handles) with key and description** (`inputs`)
@@ -63,6 +65,10 @@
 - **LLM Inputs**
   - Each LLM node declares `inputs` — a list of input handles composed of two properties: `key` (short identifier) and `description` (longer text used in the prompt).
   - Both `key` and `description` are edited by the user in the sidebar. No binding to upstream nodes is defined at this time.
+
+## Sidebar: LLM Detail Settings
+- The LLM editor exposes a “Detail Settings” toggle containing `provider`, `model`, `temperature`, and `maxTokens`.
+- These values are persisted verbatim on the node and forwarded to the backend `/llm/invoke` as `provider`, `model`, `temperature`, and `max_tokens` (converted to snake_case for the request).
 
 ## Execution Engine (Immediate Forward Propagation)
 - State lives in a global Zustand store (frontend) and is ephemeral. SQLite keeps only graph/config.

@@ -1,5 +1,6 @@
 import React from "react";
 import { Text, TextArea } from "@radix-ui/themes";
+import { useEngineStore } from "../../engine/store";
 
 export default function SchemaEditor({
   value,
@@ -29,12 +30,14 @@ export default function SchemaEditor({
     }
   }
 
+  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   return (
     <label className="field">
       <Text as="span" weight="medium">Response Schema (JSON)</Text>
       <TextArea
         rows={6}
         className="mono"
+        style={{ resize: "vertical" }}
         placeholder='{"type": "object", "properties": { "result": { "type": "string" } }, "required": ["result"] }'
         value={text}
         onChange={(e) => {
@@ -58,6 +61,7 @@ export default function SchemaEditor({
         }}
         aria-invalid={Boolean(error)}
         color={error ? "red" : undefined}
+        disabled={isBusy}
       />
       {error && <div style={{ color: "var(--danger, #cc3b3b)", fontSize: 12 }}>{error}</div>}
     </label>
