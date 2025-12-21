@@ -10,61 +10,17 @@ import GraphCanvas from "./graph/GraphCanvas";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
 import type { LLMData, MCPData, NodeData } from "./types";
+import { makeDefaultNode, type NewNodeType } from "./graph/factory";
+import { loadGraph } from "./db/sqlite";
 
-export default function App() {
-  const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
-  const [selected, setSelected] = useState<Node<NodeData> | null>(null);
-  // Footer derives from End nodes' latest outputs
-  const [newNodeType, setNewNodeType] = useState<"entry" | "llm" | "router" | "mcp" | "end">("llm");
-
-  // App.tsx stays thin; persistence lives in useGraph()
-
-  // Factory for default node data by type
-  const makeDefaultNode = (
-    type: "entry" | "llm" | "router" | "mcp" | "end",
-    idx: number,
-  ): Node<NodeData> => {
-    const id = `${type}-${Date.now()}`;
-    const base = {
-      id,
-      type,
-      position: { x: 120 + idx * 30, y: 120 + idx * 20 },
-    } as const;
-    switch (type) {
-      case "entry":
-        return {
-          ...base,
-          data: { name: "Entry", inputs: [{ key: "user_input", value: "" }] },
-        } as Node<any>;
-      case "llm":
-        return {
-          ...base,
-          data: { name: "LLM" },
-        } as Node<any>;
-      case "router":
-        return {
-          ...base,
-          data: { name: "Router", branches: ["a", "b"] },
-        } as Node<any>;
-      case "mcp":
-        return {
-          ...base,
-          data: { name: "MCP", url: "http://localhost:9000" },
-        } as Node<any>;
-      case "end":
-      default:
-        return { ...base, data: { name: "End" } } as Node<any>;
-    }
-  };
-
-  // Add new node based on selected type
-  const addNode = () => {
-    const newNode = makeDefaultNode(newNodeType, nodes.length);
-    const next = [...nodes, newNode];
-    setNodes(next);
-  };
-
-  // Delete selected node with Delete key; remove attached edges
+// Simple hook for Delete key handling
+function useDeleteSelected(
+  selected: Node<NodeData> | null,
+  nodes: Node<NodeData>[],
+  edges: Edge[],
+  setNodes: (n: Node<NodeData>[]) => void,
+  setEdges: (e: Edge[]) => void,
+) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete") return;
@@ -73,11 +29,27 @@ export default function App() {
       const nextEdges = edges.filter((e) => e.source !== selected.id && e.target !== selected.id);
       setNodes(nextNodes);
       setEdges(nextEdges);
-      setSelected(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, nodes, edges]);
+  }, [selected, nodes, edges, setNodes, setEdges]);
+}
+
+export default function App() {
+  const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
+  const [selected, setSelected] = useState<Node<NodeData> | null>(null);
+  const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
+
+  // Keep App thin; persistence lives in useGraph()
+
+  // Add new node based on selected type
+  const addNode = () => {
+    const newNode = makeDefaultNode(newNodeType, nodes.length);
+    const next = [...nodes, newNode];
+    setNodes(next);
+  };
+
+  useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
 
   const latestOutputByNode = useEngineStore((s) => s.latestOutputByNode);
   const endSummaries = useMemo(() => {
@@ -102,11 +74,14 @@ export default function App() {
     return parts;
   }, [nodes, latestOutputByNode]);
 
-  // Listen for Entry node 'ignite' events and kick off the engine
+  // Direct ignite: simple and explicit, no globals
+  const runFlow = () => ignite(nodes, edges);
+
+  // Maintain compatibility with Entry node's local Ignite button
   useEffect(() => {
     const onIgnite = (e: Event) => {
       const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
-      ignite(nodes, edges, detail?.entryId ?? null);
+      ignite(nodes, edges, detail?.entryId ?? undefined);
     };
     window.addEventListener("engine:ignite", onIgnite as EventListener);
     return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
@@ -147,6 +122,11 @@ export default function App() {
           </select>
           <button onClick={addNode}>Add Node</button>
           <button onClick={() => logGraphSnapshot(nodes, edges)}>Log Graph</button>
+          <button
+            onClick={runFlow}
+          >
+            Run
+          </button>
           <button
             onClick={() => {
               try {

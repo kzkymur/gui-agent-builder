@@ -1,13 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
   SelectionMode,
   addEdge,
-  useEdgesState,
-  useNodesState,
-  applyEdgeChanges,
   applyNodeChanges,
 } from "reactflow";
 import type {
@@ -41,11 +38,7 @@ export default function GraphCanvas({
   onEdgesChange,
   onSelectNode,
 }: Props) {
-  const [localNodes, setLocalNodes, handleNodesChange] = useNodesState(nodes);
-  const [localEdges, setLocalEdges, handleEdgesChange] = useEdgesState(edges);
-  const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
-  const [pendingNodes, setPendingNodes] = useState<Node<NodeData>[] | null>(null);
-  const [pendingEdges, setPendingEdges] = useState<Edge[] | null>(null);
+  // Parent is the single source of truth; no local mirrors.
 
   const nodeTypes = useMemo<NodeTypes>(
     () => ({
@@ -58,86 +51,53 @@ export default function GraphCanvas({
     [],
   );
 
-  // Keep local state in sync when parent props change (e.g., after DB load)
-  useEffect(() => {
-    setLocalNodes(nodes);
-  }, [nodes, setLocalNodes]);
-
-  useEffect(() => {
-    setLocalEdges(edges);
-  }, [edges, setLocalEdges]);
-
   const onChangeNodes: OnNodesChange = useCallback(
     (changes) => {
-      setLocalNodes((ns) => {
-        const next = applyNodeChanges(changes, ns);
-        // Defer parent update to after-commit effect
-        setPendingNodes(next as unknown as Node<NodeData>[]);
-        return next;
-      });
+      const next = applyNodeChanges(changes, nodes as any) as unknown as Node<NodeData>[];
+      onNodesChange(next);
     },
-    [setLocalNodes],
+    [nodes, onNodesChange],
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
     (changes) => {
-      setLocalEdges((es) => {
-        const next = applyEdgeChanges(changes, es);
-        setPendingEdges(next as unknown as Edge[]);
-        return next;
-      });
+      const next = changes.reduce<Edge[]>((acc, change) => {
+        if (change.type === "remove") return acc.filter((e) => e.id !== change.id);
+        // Other edge change types are rare here; keep acc by default
+        return acc;
+      }, edges);
+      onEdgesChange(next);
     },
-    [setLocalEdges],
+    [edges, onEdgesChange],
   );
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
       // Spec: MCP has no inputs/outputs; End has no outputs
-      const src = localNodes.find((n) => n.id === connection.source);
-      const tgt = localNodes.find((n) => n.id === connection.target);
+      const src = nodes.find((n) => n.id === connection.source);
+      const tgt = nodes.find((n) => n.id === connection.target);
       if (!src || !tgt) return;
       // Entry: no inputs; End: no outputs; MCP: no inputs/outputs
       if (src.type === "end" || src.type === "mcp") return;
       if (tgt.type === "mcp" || tgt.type === "entry") return;
-      setLocalEdges((eds) => {
-        const next = addEdge(connection, eds);
-        setPendingEdges(next as unknown as Edge[]);
-        return next;
-      });
+      const next = addEdge(connection, edges);
+      onEdgesChange(next as unknown as Edge[]);
     },
-    [setLocalEdges, localNodes],
+    [nodes, edges, onEdgesChange],
   );
 
-  const onSelection = useCallback((elements: { nodes: Node<NodeData>[] }) => {
-    // Defer notifying parent to avoid setState during render warning
-    setSelectedNode(elements.nodes[0] ?? null);
-  }, []);
-
-  // Notify parent after render commit
-  useEffect(() => {
-    onSelectNode(selectedNode);
-  }, [selectedNode, onSelectNode]);
-
-  // Flush pending node/edge updates to parent after commit
-  useEffect(() => {
-    if (pendingNodes) {
-      onNodesChange(pendingNodes);
-      setPendingNodes(null);
-    }
-  }, [pendingNodes, onNodesChange]);
-
-  useEffect(() => {
-    if (pendingEdges) {
-      onEdgesChange(pendingEdges);
-      setPendingEdges(null);
-    }
-  }, [pendingEdges, onEdgesChange]);
+  const onSelection = useCallback(
+    (elements: { nodes: Node<NodeData>[] }) => {
+      onSelectNode(elements.nodes[0] ?? null);
+    },
+    [onSelectNode],
+  );
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <ReactFlow
-        nodes={localNodes}
-        edges={localEdges}
+        nodes={nodes}
+        edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={onChangeNodes}
         onEdgesChange={onChangeEdges}

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from .logging import BufferingHandler
+from ..utils.schema import enforce_no_additional_properties
 from .mcp import abuild_mcp_tools
 
 
@@ -61,7 +62,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     has_mcp = bool(payload.get("mcp", {}).get("servers"))
     if provider == "anthropic" and response_schema and not has_mcp:
         try:
-            schema_obj = response_schema
+            schema_obj = enforce_no_additional_properties(response_schema)
             tool = {
                 "name": "output",
                 "description": "Return the structured result matching the schema.",
@@ -132,7 +133,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Finalize into structured output when requested (post-tool phase)
     if provider == "anthropic" and response_schema:
         try:
-            schema_obj = response_schema
+            schema_obj = enforce_no_additional_properties(response_schema)
             tool = {
                 "name": "output",
                 "description": "Return the structured result matching the schema.",
@@ -210,7 +211,10 @@ def _create_chat_model(
         if not _is_openai_available():
             raise RuntimeError("langchain-openai not installed")
         if response_schema:
-            params["response_format"] = {"type": "json_schema", "json_schema": response_schema}
+            params["response_format"] = {
+                "type": "json_schema",
+                "json_schema": enforce_no_additional_properties(response_schema),
+            }
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(**params), "openai"
