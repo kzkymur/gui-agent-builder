@@ -5,105 +5,20 @@ import GraphCanvas from "./graph/GraphCanvas";
 import { logGraphSnapshot } from "./engine/graph";
 import type { Edge, Node } from "reactflow";
 import type { LLMData, MCPData, NodeData } from "./types";
-import { initDB, loadGraph, saveGraph } from "./db/sqlite";
+import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
 import { backendClient } from "./engine/backendClient";
-import { ignite } from "./engine/runtime";
+import { ignite } from "./engine/runner";
 
 export default function App() {
-  // Normalize legacy node data shapes to current schema before using/saving
-  const normalizeNodeData = (type: string | undefined, data: any): any => {
-    const d = data ?? {};
-    if (type === 'entry') {
-      // v1: inputs: string[] -> v2: { key, value? }[]
-      if (Array.isArray(d.inputs) && d.inputs.length && typeof d.inputs[0] === 'string') {
-        d.inputs = d.inputs.map((k: string) => ({ key: k, value: '' }));
-      }
-    }
-    if (type === 'llm') {
-      // ensure arrays are arrays; leave empty when missing
-      if (d.inputs && Array.isArray(d.inputs)) {
-        d.inputs = d.inputs.map((i: any) => ({ key: i?.key ?? '', description: i?.description ?? '' }));
-      }
-      if (d.outputPointers && !Array.isArray(d.outputPointers)) {
-        d.outputPointers = [];
-      }
-    }
-    return d;
-  };
-  // Start with an empty canvas; no seeded demo graph.
-  const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
   const [footerValue, setFooterValue] = useState<string>("");
-  const [dbReady, setDbReady] = useState(false);
   const [newNodeType, setNewNodeType] = useState<
     "entry" | "llm" | "router" | "mcp" | "end"
   >("llm");
 
-  // Initialize DB and load any saved graph once at startup
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      await initDB();
-      const persisted = loadGraph();
-      if (!mounted) return;
-      setDbReady(true);
-      if (persisted.nodes.length || persisted.edges.length) {
-        setNodes(
-          persisted.nodes.map((n) => ({
-            id: n.id,
-            type: n.type as any,
-            position: { x: n.x, y: n.y },
-            data: normalizeNodeData(n.type as any, n.data as any),
-          }))
-        );
-        setEdges(
-          persisted.edges.map((e) => ({
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            sourceHandle: (e as any).sourceHandle ?? undefined,
-            targetHandle: (e as any).targetHandle ?? undefined,
-          }))
-        );
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist immediately (used on initial seed) and via debounced effect for edits
-  const saveToDb = (nodeList: Node<NodeData>[], edgeList: Edge[]) => {
-    if (!dbReady) return; // Ignore saves until DB init completes
-    saveGraph(
-      nodeList.map((n) => ({
-        id: n.id,
-        type: n.type ?? "default",
-        x: n.position.x,
-        y: n.position.y,
-        data: normalizeNodeData(n.type, n.data),
-      })),
-      edgeList.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target!,
-        sourceHandle: (e as any).sourceHandle ?? null,
-        targetHandle: (e as any).targetHandle ?? null,
-      }))
-    );
-  };
-
-  // Debounce persistence to avoid jank while typing in the sidebar
-  useEffect(() => {
-    if (!dbReady) return;
-    const t = setTimeout(() => {
-      saveToDb(nodes, edges);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [nodes, edges, dbReady]);
+  // App.tsx stays thin; persistence lives in useGraph()
 
   // Factory for default node data by type
   const makeDefaultNode = (
@@ -181,11 +96,14 @@ export default function App() {
   // Listen for Entry node 'ignite' events and kick off the engine
   useEffect(() => {
     const onIgnite = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
+      const detail = (e as CustomEvent).detail as
+        | { entryId?: string | null }
+        | undefined;
       ignite(nodes, edges, detail?.entryId ?? null);
     };
-    window.addEventListener('engine:ignite', onIgnite as EventListener);
-    return () => window.removeEventListener('engine:ignite', onIgnite as EventListener);
+    window.addEventListener("engine:ignite", onIgnite as EventListener);
+    return () =>
+      window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
   return (

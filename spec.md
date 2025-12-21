@@ -63,6 +63,13 @@
 - **LLM Inputs**
   - Each LLM node declares `inputs` — a list of input handles composed of two properties: `key` (short identifier) and `description` (longer text used in the prompt).
   - Both `key` and `description` are edited by the user in the sidebar. No binding to upstream nodes is defined at this time.
+
+## Execution Engine (Immediate Forward Propagation)
+- State lives in a global Zustand store (frontend) and is ephemeral. SQLite keeps only graph/config.
+- Ignite starts a run from Entry nodes: build `{key:value}` input per Entry, write snapshots, and invoke the Entry adapter immediately.
+- When a node finishes, the engine propagates its output along outgoing edges, merges target inputs, and immediately invokes targets whose inputs changed. This chaining grows the I/O trace tree (no queues).
+- Adapters: Entry echoes input; LLM composes messages and calls backend `/llm/invoke` (structured output when `responseSchema` is an object); Router selects branches; End echoes input.
+- Run ends when no node is running or scheduled; errors annotate the trace and set status failed unless cancelled.
 - **Error Handling**
   - The backend returns proper HTTP error status codes for any LLM or MCP failure.
 

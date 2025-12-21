@@ -87,3 +87,10 @@ er, used as a label and variable name.
 - Usage:
   - `import { backendClient } from './engine/backendClient'`
   - `const res = await backendClient.GET('/health')`
+
+**Execution Engine (Immediate Forward Propagation)**
+- State is global, ephemeral (Zustand). SQLite is config‑only. No queues: a node’s completion immediately propagates to its targets and invokes them asynchronously.
+- Store (to implement `src/engine/store.ts`): `{ run, activeRunning: Map<actId,{nodeId,startedAt}>, inputBufByNode, latestInputByNode, latestOutputByNode, trace:{nodes,roots} }`.
+- Ignite: build `{key:value}` from Entry nodes, write latest/input buffers, append root trace nodes, and call `runNode(entryId)` immediately.
+- runNode: if already running, return; snapshot `inputBufByNode[nodeId]`, write a trace start, await adapter (Entry/LLM/Router/End), then update trace and latestOutput and call `propagate`.
+- propagate: for each outgoing edge, derive values by handle rules (Entry out‑i, LLM out‑i via `outputPointers[i]`, Router `br-<name>`), merge into `inputBufByNode[target]`, coalesce same‑tick triggers, and schedule `runNode(target)` via microtask; finalize when none are running/scheduled.
