@@ -164,14 +164,44 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     return _normalize_response(res, meta_provider, model, parsed, logs=cb.logs)
 
 
+def _extract_usage(meta: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(meta, dict):
+        return None
+    # Common locations across SDKs
+    u = meta.get("token_usage") or meta.get("usage") or {}
+    if not isinstance(u, dict):
+        u = {}
+    # Try to normalize fields
+    input_tokens = u.get("input_tokens")
+    if input_tokens is None:
+        input_tokens = u.get("prompt_tokens")
+    output_tokens = u.get("output_tokens")
+    if output_tokens is None:
+        output_tokens = u.get("completion_tokens")
+    total_tokens = u.get("total_tokens")
+    if total_tokens is None and (isinstance(input_tokens, (int, float)) or isinstance(output_tokens, (int, float))):
+        total_tokens = int((input_tokens or 0)) + int((output_tokens or 0))
+    # Build compact dict with available numbers only
+    result: Dict[str, Any] = {}
+    if isinstance(input_tokens, (int, float)):
+        result["input_tokens"] = int(input_tokens)
+    if isinstance(output_tokens, (int, float)):
+        result["output_tokens"] = int(output_tokens)
+    if isinstance(total_tokens, (int, float)):
+        result["total_tokens"] = int(total_tokens)
+    return result or None
+
+
 def _normalize_response(res: Any, provider: str, model: str, output: Any, *, logs: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    meta = getattr(res, "response_metadata", None)
+    usage = _extract_usage(meta)
     return {
         "id": getattr(res, "id", None),
         "output": output,
         "provider": provider,
         "model": model,
-        "usage": getattr(res, "response_metadata", {}).get("token_usage"),
-        "raw": getattr(res, "response_metadata", None),
+        "usage": usage,
+        "raw": meta,
         "logs": logs or [],
     }
 

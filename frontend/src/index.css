@@ -345,3 +345,8 @@ textarea.rt-TextAreaInput {
 .react-flow__nodes {
   z-index: 10 !important;
 }
+
+/* Constant width for Radix Select triggers across the app */
+.rt-SelectTrigger {
+  width: 200px;
+}

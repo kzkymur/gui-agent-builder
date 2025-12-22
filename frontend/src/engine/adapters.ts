@@ -54,9 +54,9 @@ export async function evalLLM(
       },
     });
     if (res.error) throw new Error("backend error");
-    const payload: unknown = res.data;
+    const payload: any = res.data as any;
     try {
-      const usage = (payload as any)?.usage;
+      const usage = payload?.usage || payload?.raw?.token_usage;
       if (usage) useEngineStore.getState().addUsage(usage);
     } catch {}
     if (

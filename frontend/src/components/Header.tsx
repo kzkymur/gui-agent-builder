@@ -8,11 +8,17 @@ export default function Header({
   newNodeType,
   onChangeNewNodeType,
   onAddNode,
+  onSaveBookmark,
+  bookmarks,
+  onLoadBookmark,
 }: {
   isBusy: boolean;
   newNodeType: string;
   onChangeNewNodeType: (v: string) => void;
   onAddNode: () => void;
+  onSaveBookmark: (name: string) => void;
+  bookmarks: { name: string; savedAt: number }[];
+  onLoadBookmark: (name: string) => void;
 }) {
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
@@ -31,6 +37,8 @@ export default function Header({
     })();
   }, []);
 
+  const [selectedBookmark, setSelectedBookmark] = useState<string>("")
+
   return (
     <header className="app__header">
       <div
@@ -44,7 +52,7 @@ export default function Header({
       >
         <h2 style={{ margin: 0, marginRight: "32px" }}>GUI Agent Builder</h2>
         <Select.Root value={newNodeType} onValueChange={onChangeNewNodeType} disabled={isBusy}>
-          <Select.Trigger placeholder="New node…" />
+          <Select.Trigger placeholder="New node…" style={{ width: 160 }} />
           <Select.Content>
             <Select.Item value="entry">Entry</Select.Item>
             <Select.Item value="llm">LLM</Select.Item>
@@ -56,6 +64,43 @@ export default function Header({
         <Button onClick={onAddNode} disabled={isBusy}>
           Add Node
         </Button>
+
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginLeft: 12 }}>
+          <TextField.Root placeholder="bookmark name" id="bm-name" disabled={isBusy} />
+          <Button
+            onClick={() => {
+              const el = document.getElementById("bm-name") as HTMLInputElement | null;
+              const name = (el?.value || "").trim();
+              if (!name) return;
+              onSaveBookmark(name);
+              if (el) el.value = "";
+            }}
+            disabled={isBusy}
+            variant="soft"
+          >
+            Save
+          </Button>
+          <Select.Root
+            value={selectedBookmark}
+            onValueChange={(v) => setSelectedBookmark(v)}
+            disabled={isBusy || bookmarks.length === 0}
+          >
+            <Select.Trigger placeholder={bookmarks.length ? "Choose bookmark…" : "No bookmarks"} style={{ width: 220 }} />
+            <Select.Content>
+              {bookmarks.map((b) => (
+                <Select.Item key={b.name} value={b.name}>
+                  {b.name}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+          <Button
+            onClick={() => selectedBookmark && onLoadBookmark(selectedBookmark)}
+            disabled={isBusy || !selectedBookmark}
+          >
+            Load
+          </Button>
+        </div>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <Popover.Root open={keysOpen} onOpenChange={setKeysOpen}>

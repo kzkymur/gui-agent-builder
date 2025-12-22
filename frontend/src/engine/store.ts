@@ -127,10 +127,24 @@ export const useEngineStore = create<EngineState>((set) => ({
       try {
         if (!usage || typeof usage !== "object") return {} as Partial<EngineState>;
         const u = usage as any;
-        const total =
-          typeof u.total_tokens === "number"
-            ? u.total_tokens
-            : Number(u.input_tokens || 0) + Number(u.output_tokens || 0);
+        const total = (() => {
+          if (typeof u.total_tokens === "number") return u.total_tokens;
+          // OpenAI-style legacy
+          if (
+            typeof u.prompt_tokens === "number" ||
+            typeof u.completion_tokens === "number"
+          ) {
+            return Number(u.prompt_tokens || 0) + Number(u.completion_tokens || 0);
+          }
+          // Newer input/output naming
+          if (
+            typeof u.input_tokens === "number" ||
+            typeof u.output_tokens === "number"
+          ) {
+            return Number(u.input_tokens || 0) + Number(u.output_tokens || 0);
+          }
+          return NaN;
+        })();
         if (!Number.isFinite(total)) return {} as Partial<EngineState>;
         return { tokenUsageTotal: (s.tokenUsageTotal || 0) + total } as Partial<EngineState>;
       } catch {

@@ -13,7 +13,7 @@ import NodeEditor from "./sidebar/NodeEditor";
 import type { LLMData, MCPData, NodeData } from "./types";
 import MarkdownView from "./components/MarkdownView";
 import { makeDefaultNode, type NewNodeType } from "./graph/factory";
-import { loadGraph } from "./db/sqlite";
+import { loadGraph, loadSettings as dbLoadSettings, saveSetting } from "./db/sqlite";
 
 // Simple hook for Delete key handling
 function useDeleteSelected(
@@ -117,6 +117,50 @@ export default function App() {
     return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
+  // Bookmarks
+  const [bookmarks, setBookmarks] = useState<{ name: string; savedAt: number }[]>([]);
+  useEffect(() => {
+    if (!dbReady) return;
+    try {
+      const all = dbLoadSettings();
+      const raw = all["bookmarks"] ?? "[]";
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setBookmarks(parsed.map((b: any) => ({ name: String(b.name), savedAt: Number(b.savedAt || 0) })));
+      }
+    } catch {}
+  }, [dbReady]);
+
+  const saveBookmark = (name: string) => {
+    try {
+      const all = dbLoadSettings();
+      const raw = all["bookmarks"] ?? "[]";
+      let arr: any[] = [];
+      try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) arr = parsed; } catch {}
+      const snapNodes = nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, data: n.data }));
+      const snapEdges = edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: (e as any).sourceHandle ?? null, targetHandle: (e as any).targetHandle ?? null }));
+      const idx = arr.findIndex((b) => b && b.name === name);
+      const entry = { name, nodes: snapNodes, edges: snapEdges, savedAt: Date.now() };
+      if (idx >= 0) arr[idx] = entry; else arr.push(entry);
+      saveSetting("bookmarks", JSON.stringify(arr));
+      setBookmarks(arr.map((b) => ({ name: b.name, savedAt: b.savedAt })));
+    } catch {}
+  };
+
+  const loadBookmark = (name: string) => {
+    try {
+      const all = dbLoadSettings();
+      const parsed = JSON.parse(all["bookmarks"] ?? "[]");
+      if (!Array.isArray(parsed)) return;
+      const found = parsed.find((b: any) => b && b.name === name);
+      if (!found) return;
+      const n = (found.nodes || []).map((x: any) => ({ id: String(x.id), type: String(x.type), position: { x: Number(x.x) || 0, y: Number(x.y) || 0 }, data: x.data || {} }));
+      const e = (found.edges || []).map((x: any) => ({ id: String(x.id), source: String(x.source), target: String(x.target), sourceHandle: x.sourceHandle ?? null, targetHandle: x.targetHandle ?? null }));
+      setNodes(n);
+      setEdges(e);
+    } catch {}
+  };
+
   // header manages provider list for API keys dropdown
 
   return (
@@ -126,6 +170,9 @@ export default function App() {
         newNodeType={newNodeType}
         onChangeNewNodeType={(v) => setNewNodeType(v as any)}
         onAddNode={addNode}
+        onSaveBookmark={saveBookmark}
+        bookmarks={bookmarks}
+        onLoadBookmark={loadBookmark}
       />
       <main className="app__main" style={{ gridTemplateColumns: `1fr 6px ${sidebarVisible ? `${sidebarWidth}px` : '0px'}` }}>
         <div className="main-left" style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}>
