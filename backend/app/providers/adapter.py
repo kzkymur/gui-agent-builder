@@ -12,6 +12,7 @@ def provider_catalog() -> Dict[str, Dict[str, Any]]:
         "openai": {"name": "OpenAI"},
         "anthropic": {"name": "Anthropic Claude"},
         "deepseek": {"name": "DeepSeek"},
+        "google": {"name": "Google Gemini"},
     }
 
 
@@ -25,6 +26,10 @@ def provider_capabilities(provider_id: str) -> Dict[str, Any]:
     if provider_id == "deepseek":
         caps["available"] = _is_deepseek_available()
         # Emulated via prompt + post-parse
+        caps["json_mode"] = True
+        caps["structured_output"] = True
+    if provider_id == "google":
+        caps["available"] = _is_google_available()
         caps["json_mode"] = True
         caps["structured_output"] = True
     return caps
@@ -309,6 +314,12 @@ def _create_chat_model(
             params["temperature"] = max(0.0, min(1.0, float(t)))
         return ChatDeepSeek(**params), "deepseek"
 
+    if provider == "google":
+        if not _is_google_available():
+            raise RuntimeError("langchain-google-genai not installed")
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(**params), "google"
+
     raise RuntimeError(f"Unsupported provider: {provider}")
 
 
@@ -331,6 +342,14 @@ def _is_anthropic_available() -> bool:
 def _is_deepseek_available() -> bool:
     try:
         import langchain_deepseek  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _is_google_available() -> bool:
+    try:
+        import langchain_google_genai  # noqa: F401
         return True
     except Exception:
         return False

@@ -5,6 +5,7 @@ REGISTRY = {
     "openai": {"invoke": lc_invoke_generic},
     "anthropic": {"invoke": lc_invoke_generic},
     "deepseek": {"invoke": lc_invoke_generic},
+    "google": {"invoke": lc_invoke_generic},
 }
 
 
