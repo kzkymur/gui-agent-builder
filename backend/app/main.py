@@ -7,7 +7,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .providers import REGISTRY, list_providers
+from .providers import REGISTRY, list_providers, provider_capabilities
 from .utils.schema import validate_output_against_schema
 from .utils.errors import to_http
 
@@ -133,9 +133,17 @@ async def llm_invoke(
             # Aggregate logs if provided by adapter
             if isinstance(result, dict) and "logs" in result and isinstance(result["logs"], list):
                 combined_logs.extend(result["logs"]) 
-            # If a response_schema is present, validate output shape
+            # If structured output is supported and a response_schema is present, validate output shape
+            caps = provider_capabilities(body.provider)
             if body.response_schema is not None:
-                validate_output_against_schema(result.get("output"), body.response_schema)
+                if caps.get("structured_output", False):
+                    validate_output_against_schema(result.get("output"), body.response_schema)
+                else:
+                    combined_logs.append({
+                        "event": "schema_validation_skipped",
+                        "reason": "provider_does_not_support_structured_output",
+                        "provider": body.provider,
+                    })
             # Success
             return InvokeResponse(
                 id=result.get("id"),

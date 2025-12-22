@@ -24,7 +24,8 @@ def provider_capabilities(provider_id: str) -> Dict[str, Any]:
         caps["structured_output"] = True
     if provider_id == "deepseek":
         caps["available"] = _is_deepseek_available()
-        caps["json_mode"] = False
+        # Emulated via prompt + post-parse
+        caps["json_mode"] = True
         caps["structured_output"] = True
     return caps
 
@@ -41,6 +42,33 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     cb = BufferingHandler()
     messages = _to_lc_messages(payload.get("messages", []))
+
+    # Emulate JSON modes for providers lacking native support
+    extra = payload.get("extra") or {}
+    emulate_json_only = bool(extra.get("json_mode"))
+    if provider == "deepseek":
+        # If a response schema is provided, prepend a strict JSON instruction with the schema
+        if response_schema:
+            try:
+                import json
+                schema_obj = enforce_no_additional_properties(response_schema)
+                schema_json = json.dumps(schema_obj)
+                messages = _to_lc_messages([
+                    {"role": "system", "content": (
+                        "You must respond with a single JSON object that strictly conforms to the provided JSON Schema. "
+                        "Do not include any prose, code fences, or comments. If unsure, return the closest valid JSON.\n\n"
+                        f"JSON Schema: {schema_json}"
+                    )}
+                ]) + messages
+            except Exception:
+                # Fall through; backend will still best-effort parse
+                pass
+        elif emulate_json_only:
+            messages = _to_lc_messages([
+                {"role": "system", "content": (
+                    "You must respond with JSON only. Return a single valid JSON value with no extra text, no code fences, and no commentary."
+                )}
+            ]) + messages
 
     # Bind MCP tools if provided
     tools = await abuild_mcp_tools(payload.get("mcp"))
@@ -153,11 +181,27 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     content = getattr(res, "content", "")
     parsed: Any = content
-    if response_schema:
+    if response_schema or (provider == "deepseek" and emulate_json_only):
         try:
             import json
-
-            parsed = json.loads(content)
+            # common model behaviors: fenced blocks or leading prose
+            txt = content.strip()
+            if txt.startswith("```"):
+                # try to strip fences ```json ... ```
+                txt = txt.strip('`')
+                # fallback: find first and last brace
+            def try_parse(s: str):
+                try:
+                    return json.loads(s)
+                except Exception:
+                    return None
+            candidate = try_parse(txt)
+            if candidate is None:
+                import re
+                m = re.search(r"\{[\s\S]*\}\s*\Z", content)
+                if m:
+                    candidate = try_parse(m.group(0))
+            parsed = candidate if candidate is not None else content
         except Exception:
             parsed = content
 

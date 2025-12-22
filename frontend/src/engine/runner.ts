@@ -205,7 +205,15 @@ async function propagate(
         sourceOutput && typeof sourceOutput === "object"
           ? (sourceOutput as any).payload
           : undefined;
-      nextInput = { ...nextInput, value: payload };
+      // Map to LLM target input key when connected to an LLM
+      if (target.type === "llm") {
+        const inIdx = Number((e.targetHandle || "").replace("in-", ""));
+        const tKeyRaw = ((target.data as Partial<LLMData>).inputs || [])[inIdx]?.key;
+        const tKey = tKeyRaw && tKeyRaw.length ? tKeyRaw : `in${isFinite(inIdx) ? inIdx : 0}`;
+        nextInput = { ...nextInput, [tKey]: payload };
+      } else {
+        nextInput = { ...nextInput, value: payload };
+      }
     } else if (source.type === "end") {
       // End has no outputs by spec; skip
       continue;

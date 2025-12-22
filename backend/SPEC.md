@@ -41,10 +41,11 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
     - `provider` (string, required) — e.g. `openai`, `anthropic`, `deepseek`.
     - `model` (string, required)
     - `messages` (array, required) — chat format `[ { "role": "system|user|assistant", "content": string } ]`.
-    - `response_schema` (object, optional) — JSON Schema object to request structured output when the provider supports it. The value MUST be the schema itself, not wrapped (e.g., no `{ name, schema }`). If the root schema has `type: "object"` and omits `additionalProperties`, the backend enforces `additionalProperties: false` during provider calls and validation to prevent undeclared fields.
+    - `response_schema` (object, optional) — JSON Schema object to request structured output when the provider supports it. The value MUST be the schema itself, not wrapped (e.g., no `{ name, schema }`). If the root schema has `type: "object"` and omits `additionalProperties`, the backend enforces `additionalProperties: false` — validation runs only when the provider advertises `structured_output: true`.
     - `temperature` (number, optional)
     - `max_tokens` (number, optional)
     - `extra` (object, optional) — provider‑specific passthrough fields.
+      - DeepSeek: `{ "json_mode": true }` triggers emulated JSON‑only responses (no schema). Backend prepends a strict instruction and best‑effort parses the reply as JSON.
   - Auth: API key supplied via header `X-Provider-Api-Key` or environment variable per provider (header takes precedence when provided).
   - Response 200 JSON:
     - `id` (string) — provider response id if available

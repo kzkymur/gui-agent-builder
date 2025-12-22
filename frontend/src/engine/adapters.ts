@@ -17,7 +17,6 @@ export async function evalLLM(
   node: Node<NodeData>,
   input: Record<string, unknown>
 ): Promise<EvalResult> {
-  console.log(input);;
   const data = (node.data || {}) as Partial<LLMData>;
   const messages: Array<{ role: "system" | "user"; content: string }> = [];
   if (data.system)
