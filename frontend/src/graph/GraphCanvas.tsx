@@ -7,37 +7,21 @@ import ReactFlow, {
   addEdge,
   applyNodeChanges,
 } from "reactflow";
-import type {
-  Connection,
-  Edge,
-  Node,
-  NodeTypes,
-  OnConnect,
-  OnEdgesChange,
-  OnNodesChange,
-} from "reactflow";
+import type { Connection, NodeTypes, OnConnect, OnEdgesChange, OnNodesChange } from "reactflow";
 import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
 import MCPNode from "../nodes/MCPNode";
 import SwitchNode from "../nodes/SwitchNode";
 import type { NodeData } from "../types";
+import { useGraphUI } from "./uiStore";
 
-type Props = {
-  nodes: Node<NodeData>[];
-  edges: Edge[];
-  onNodesChange: (nodes: Node<NodeData>[]) => void;
-  onEdgesChange: (edges: Edge[]) => void;
-  onSelectNode: (node: Node<NodeData> | null) => void;
-};
-
-export default function GraphCanvas({
-  nodes,
-  edges,
-  onNodesChange,
-  onEdgesChange,
-  onSelectNode,
-}: Props) {
+export default function GraphCanvas() {
+  const nodes = useGraphUI((s) => s.nodes);
+  const edges = useGraphUI((s) => s.edges);
+  const setNodes = useGraphUI((s) => s.setNodes);
+  const setEdges = useGraphUI((s) => s.setEdges);
+  const setSelected = useGraphUI((s) => s.setSelected);
   // Parent is the single source of truth; no local mirrors.
 
   const nodeTypes = useMemo<NodeTypes>(
@@ -53,26 +37,21 @@ export default function GraphCanvas({
 
   const onChangeNodes: OnNodesChange = useCallback(
     (changes) => {
-      const next = applyNodeChanges(
-        changes,
-        nodes as any
-      ) as unknown as Node<NodeData>[];
-      onNodesChange(next);
+      const next = applyNodeChanges(changes, nodes as any) as any;
+      setNodes(next);
     },
-    [nodes, onNodesChange]
+    [nodes, setNodes]
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
     (changes) => {
-      const next = changes.reduce<Edge[]>((acc, change) => {
-        if (change.type === "remove")
-          return acc.filter((e) => e.id !== change.id);
-        // Other edge change types are rare here; keep acc by default
+      const next = changes.reduce<any[]>((acc, change) => {
+        if (change.type === "remove") return acc.filter((e) => e.id !== change.id);
         return acc;
-      }, edges);
-      onEdgesChange(next);
+      }, edges as any);
+      setEdges(next as any);
     },
-    [edges, onEdgesChange]
+    [edges, setEdges]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -84,18 +63,15 @@ export default function GraphCanvas({
       // Entry: no inputs; End: no outputs; MCP: no inputs/outputs
       if (src.type === "end" || src.type === "mcp") return;
       if (tgt.type === "mcp" || tgt.type === "entry") return;
-      const next = addEdge(connection, edges);
-      onEdgesChange(next as unknown as Edge[]);
+      const next = addEdge(connection, edges as any);
+      setEdges(next as any);
     },
-    [nodes, edges, onEdgesChange]
+    [nodes, edges, setEdges]
   );
 
-  const onSelection = useCallback(
-    (elements: { nodes: Node<NodeData>[] }) => {
-      onSelectNode(elements.nodes[0] ?? null);
-    },
-    [onSelectNode]
-  );
+  const onSelection = useCallback((elements: { nodes: any[] }) => {
+    setSelected(elements.nodes[0]?.id ?? null);
+  }, [setSelected]);
 
   return (
     <div style={{ width: "100%", height: "100%" }}>

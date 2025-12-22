@@ -11,8 +11,9 @@ import GraphCanvas from "./graph/GraphCanvas";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
 import type { LLMData, MCPData, NodeData } from "./types";
-import MarkdownView from "./components/MarkdownView";
+import FooterStatus from "./components/FooterStatus";
 import { makeDefaultNode, type NewNodeType } from "./graph/factory";
+import { useGraphUI } from "./graph/uiStore";
 import {
   loadGraph,
   loadSettings as dbLoadSettings,
@@ -45,7 +46,7 @@ function useDeleteSelected(
 
 export default function App() {
   const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
-  const [selected, setSelected] = useState<Node<NodeData> | null>(null);
+  // Selection moved to graph/uiStore
   const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
@@ -64,8 +65,11 @@ export default function App() {
     const newNode = makeDefaultNode(newNodeType, nodes.length);
     const next = [...nodes, newNode];
     setNodes(next);
+    try { useGraphUI.getState().setNodes(next as any); } catch {}
   };
 
+  const selectedId = useGraphUI((s) => s.selectedId);
+  const selected = selectedId ? nodes.find((n) => n.id === selectedId) ?? null : null;
   useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
 
   // Load settings from DB when ready
@@ -74,50 +78,7 @@ export default function App() {
     loadSettings();
   }, [dbReady, loadSettings]);
 
-  const latestOutputByNode = useEngineStore((s) => s.latestOutputByNode);
-  const endSummaries = useMemo(() => {
-    const ends = nodes.filter((n) => n.type === "end");
-    const parts: string[] = [];
-    for (const n of ends) {
-      let val: any = latestOutputByNode[n.id];
-      // Unwrap common End-node shape { value: ... } for footer brevity
-      if (
-        val &&
-        typeof val === "object" &&
-        !Array.isArray(val) &&
-        "value" in val
-      ) {
-        val = (val as any).value;
-      }
-      if (typeof val === "undefined") continue;
-      let pretty: string;
-      if (typeof val === "string") pretty = val;
-      else {
-        try {
-          pretty = JSON.stringify(val, null, 2);
-        } catch {
-          pretty = String(val);
-        }
-      }
-      const name = (n.data as any)?.name || "End";
-      parts.push(`${name}:\n\n${pretty}`);
-    }
-    return parts;
-  }, [nodes, latestOutputByNode]);
-
-  const run = useEngineStore((s) => s.run);
-  const tokenUsageTotal = useEngineStore((s) => s.tokenUsageTotal);
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    if (run.status !== "running" || !run.startedAt) return;
-    const t = setInterval(() => setNow(Date.now()), 200);
-    return () => clearInterval(t);
-  }, [run.status, run.startedAt]);
-  const durationMs = run.startedAt
-    ? Math.max(0, (run.endedAt ?? now) - run.startedAt)
-    : undefined;
-  const durationLabel =
-    durationMs != null ? `${(durationMs / 1000).toFixed(2)}s` : "—";
+  // FooterStatus reads runtime data from engine store directly
 
   // Direct ignite: simple and explicit, no globals
   const runFlow = () => ignite(nodes, edges);
@@ -134,27 +95,6 @@ export default function App() {
     return () =>
       window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
-
-  // Bookmarks
-  const [bookmarks, setBookmarks] = useState<
-    { name: string; savedAt: number }[]
-  >([]);
-  useEffect(() => {
-    if (!dbReady) return;
-    try {
-      const all = dbLoadSettings();
-      const raw = all["bookmarks"] ?? "[]";
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setBookmarks(
-          parsed.map((b: any) => ({
-            name: String(b.name),
-            savedAt: Number(b.savedAt || 0),
-          }))
-        );
-      }
-    } catch {}
-  }, [dbReady]);
 
   const saveBookmark = (name: string) => {
     try {
@@ -189,7 +129,6 @@ export default function App() {
       if (idx >= 0) arr[idx] = entry;
       else arr.push(entry);
       saveSetting("bookmarks", JSON.stringify(arr));
-      setBookmarks(arr.map((b) => ({ name: b.name, savedAt: b.savedAt })));
     } catch {}
   };
 
@@ -215,6 +154,11 @@ export default function App() {
       }));
       setNodes(n);
       setEdges(e);
+      try {
+        const ui = useGraphUI.getState();
+        ui.setNodes(n as any);
+        ui.setEdges(e as any);
+      } catch {}
     } catch {}
   };
 
@@ -242,6 +186,24 @@ export default function App() {
     };
   }, []);
 
+  // Initialize UI store after DB load
+  useEffect(() => {
+    if (!dbReady) return;
+    try {
+      useGraphUI.getState().init(nodes as any, edges as any);
+    } catch {}
+  }, [dbReady]);
+
+  // Keep App in sync when graph UI store changes (user drags nodes, edits in sidebar)
+  useEffect(() => {
+    const unsubN = useGraphUI.subscribe((s) => s.nodes, (next) => setNodes(next as any));
+    const unsubE = useGraphUI.subscribe((s) => s.edges, (next) => setEdges(next as any));
+    return () => {
+      unsubN();
+      unsubE();
+    };
+  }, [setNodes, setEdges]);
+
   // header manages provider list for API keys dropdown
 
   return (
@@ -260,17 +222,7 @@ export default function App() {
           style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}
         >
           <div className="graph">
-            <GraphCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={(n) => {
-                setNodes(n);
-              }}
-              onEdgesChange={(e) => {
-                setEdges(e);
-              }}
-              onSelectNode={setSelected}
-            />
+            <GraphCanvas />
           </div>
           <div
             className="h-resizer"
@@ -292,34 +244,7 @@ export default function App() {
               window.addEventListener("mouseup", onUp);
             }}
           />
-          <footer className="app__footer" aria-live="polite">
-            <div
-              style={{
-                display: "flex",
-                gap: 24,
-                alignItems: "flex-start",
-                overflowX: "auto",
-              }}
-            >
-              <div style={{ whiteSpace: "nowrap", color: "var(--muted)" }}>
-                Tokens: <strong>{tokenUsageTotal || 0}</strong> · Time:{" "}
-                <strong>{durationLabel}</strong>
-              </div>
-              {endSummaries.length ? (
-                <div
-                  style={{ display: "flex", gap: 16, alignItems: "flex-start" }}
-                >
-                  {endSummaries.map((md, i) => (
-                    <div key={i} style={{ minWidth: 0 }}>
-                      <MarkdownView text={md} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div>Run the flow; End node outputs will appear here</div>
-              )}
-            </div>
-          </footer>
+          <FooterStatus nodes={nodes} />
         </div>
         <div
           className="v-resizer"
@@ -389,23 +314,7 @@ export default function App() {
             display: sidebarVisible ? "flex" : "none",
           }}
         >
-          {(() => {
-            const liveSelected = selected
-              ? nodes.find((n) => n.id === selected.id) ?? null
-              : null;
-            const mcpOptions = nodes
-              .filter((n) => n.type === "mcp")
-              .map((n) => ({ id: n.id, name: (n.data as any)?.name || n.id }));
-            return (
-              <NodeEditor
-                node={liveSelected}
-                mcpOptions={mcpOptions}
-                onChange={(updater) => {
-                  setNodes(updater);
-                }}
-              />
-            );
-          })()}
+          <NodeEditor />
         </aside>
       </main>
     </div>

@@ -1,6 +1,5 @@
 import React from "react";
 import { Text, TextField } from "@radix-ui/themes";
-import type { Node } from "reactflow";
 import { useEngineStore } from "../engine/store";
 import type { NodeData } from "../types";
 import LLMPanel from "./panels/LLMPanel";
@@ -8,16 +7,13 @@ import EntryPanel from "./panels/EntryPanel";
 import MCPPanel from "./panels/MCPPanel";
 import SwitchPanel from "./panels/SwitchPanel";
 import EndPanel from "./panels/EndPanel";
+import { useGraphUI } from "../graph/uiStore";
 
-export default function NodeEditor({
-  node,
-  mcpOptions,
-  onChange,
-}: {
-  node: Node<NodeData> | null;
-  mcpOptions: { id: string; name: string }[];
-  onChange: (updater: (prev: Node<NodeData>[]) => Node<NodeData>[]) => void;
-}) {
+export default function NodeEditor() {
+  const nodes = useGraphUI((s) => s.nodes);
+  const selectedId = useGraphUI((s) => s.selectedId);
+  const setNodes = useGraphUI((s) => s.setNodes);
+  const node = nodes.find((n) => n.id === selectedId) ?? null;
   const [draft, setDraft] = React.useState<NodeData | null>(node?.data ?? null);
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
 
@@ -28,14 +24,18 @@ export default function NodeEditor({
   React.useEffect(() => {
     if (!node || !draft) return;
     const t = setTimeout(() => {
-      onChange((prev) => prev.map((n) => (n.id === node.id ? { ...n, data: draft } : n)));
+      setNodes((prev) => prev.map((n) => (n.id === node.id ? { ...n, data: draft } : n)) as any);
     }, 200);
     return () => clearTimeout(t);
-  }, [draft, node, onChange]);
+  }, [draft, node, setNodes]);
 
   if (!node || !draft) return <div style={{ color: "var(--muted)" }}>Select a node to edit.</div>;
 
   const update = (patch: Partial<NodeData>) => setDraft({ ...draft, ...patch });
+
+  const mcpOptions = nodes
+    .filter((n) => n.type === "mcp")
+    .map((n) => ({ id: n.id, name: (n.data as any)?.name || n.id }));
 
   return (
     <div className="editor">
@@ -59,4 +59,3 @@ export default function NodeEditor({
     </div>
   );
 }
-
