@@ -2,28 +2,21 @@ import React, { useEffect, useState } from "react";
 import { Button, Popover, TextField, Select } from "@radix-ui/themes";
 import { getBackendClient, setBackendBaseUrl } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
+import { useEngineStore } from "../engine/store";
+import { loadSettings as dbLoadSettings } from "../db/sqlite";
 
 export default function Header({
-  isBusy,
-  newNodeType,
-  onChangeNewNodeType,
   onAddNode,
-  onSaveBookmark,
-  bookmarks,
-  onLoadBookmark,
 }: {
-  isBusy: boolean;
-  newNodeType: string;
-  onChangeNewNodeType: (v: string) => void;
   onAddNode: () => void;
-  onSaveBookmark: (name: string) => void;
-  bookmarks: { name: string; savedAt: number }[];
-  onLoadBookmark: (name: string) => void;
 }) {
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
   const [providerIds, setProviderIds] = useState<string[]>([]);
   const [keysOpen, setKeysOpen] = useState(false);
+  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
+  const [newNodeType, setNewNodeType] = useState<string>("llm");
+  const [bookmarks, setBookmarks] = useState<{ name: string; savedAt: number }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -35,6 +28,17 @@ export default function Header({
         setProviderIds([]);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const all = dbLoadSettings();
+      const raw = all["bookmarks"] ?? "[]";
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setBookmarks(parsed.map((b: any) => ({ name: String(b.name), savedAt: Number(b.savedAt || 0) })));
+      }
+    } catch {}
   }, []);
 
   const [selectedBookmark, setSelectedBookmark] = useState<string>("")
@@ -51,7 +55,7 @@ export default function Header({
         }}
       >
         <h2 style={{ margin: 0, marginRight: "32px" }}>GUI Agent Builder</h2>
-        <Select.Root value={newNodeType} onValueChange={onChangeNewNodeType} disabled={isBusy}>
+        <Select.Root value={newNodeType} onValueChange={(v) => setNewNodeType(v)} disabled={isBusy}>
           <Select.Trigger placeholder="New node…" style={{ width: 160 }} />
           <Select.Content>
             <Select.Item value="entry">Entry</Select.Item>
@@ -61,7 +65,11 @@ export default function Header({
             <Select.Item value="end">End</Select.Item>
           </Select.Content>
         </Select.Root>
-        <Button onClick={onAddNode} disabled={isBusy}>
+        <Button onClick={() => {
+          // Share selected type with App via a custom event so it can add the correct node
+          window.dispatchEvent(new CustomEvent("graph:setNewNodeType", { detail: { type: newNodeType } }));
+          onAddNode();
+        }} disabled={isBusy}>
           Add Node
         </Button>
 
@@ -72,7 +80,7 @@ export default function Header({
               const el = document.getElementById("bm-name") as HTMLInputElement | null;
               const name = (el?.value || "").trim();
               if (!name) return;
-              onSaveBookmark(name);
+              window.dispatchEvent(new CustomEvent("graph:saveBookmark", { detail: { name } }));
               if (el) el.value = "";
             }}
             disabled={isBusy}
@@ -95,7 +103,7 @@ export default function Header({
             </Select.Content>
           </Select.Root>
           <Button
-            onClick={() => selectedBookmark && onLoadBookmark(selectedBookmark)}
+            onClick={() => selectedBookmark && window.dispatchEvent(new CustomEvent("graph:loadBookmark", { detail: { name: selectedBookmark } }))}
             disabled={isBusy || !selectedBookmark}
           >
             Load

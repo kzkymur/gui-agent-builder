@@ -13,7 +13,11 @@ import NodeEditor from "./sidebar/NodeEditor";
 import type { LLMData, MCPData, NodeData } from "./types";
 import MarkdownView from "./components/MarkdownView";
 import { makeDefaultNode, type NewNodeType } from "./graph/factory";
-import { loadGraph, loadSettings as dbLoadSettings, saveSetting } from "./db/sqlite";
+import {
+  loadGraph,
+  loadSettings as dbLoadSettings,
+  saveSetting,
+} from "./db/sqlite";
 
 // Simple hook for Delete key handling
 function useDeleteSelected(
@@ -21,14 +25,16 @@ function useDeleteSelected(
   nodes: Node<NodeData>[],
   edges: Edge[],
   setNodes: (n: Node<NodeData>[]) => void,
-  setEdges: (e: Edge[]) => void,
+  setEdges: (e: Edge[]) => void
 ) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete") return;
       if (!selected) return;
       const nextNodes = nodes.filter((n) => n.id !== selected.id);
-      const nextEdges = edges.filter((e) => e.source !== selected.id && e.target !== selected.id);
+      const nextEdges = edges.filter(
+        (e) => e.source !== selected.id && e.target !== selected.id
+      );
       setNodes(nextNodes);
       setEdges(nextEdges);
     };
@@ -39,7 +45,6 @@ function useDeleteSelected(
 
 export default function App() {
   const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
-  const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [selected, setSelected] = useState<Node<NodeData> | null>(null);
   const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
   const apiKeys = useSettingsStore((s) => s.apiKeys);
@@ -76,14 +81,23 @@ export default function App() {
     for (const n of ends) {
       let val: any = latestOutputByNode[n.id];
       // Unwrap common End-node shape { value: ... } for footer brevity
-      if (val && typeof val === "object" && !Array.isArray(val) && "value" in val) {
+      if (
+        val &&
+        typeof val === "object" &&
+        !Array.isArray(val) &&
+        "value" in val
+      ) {
         val = (val as any).value;
       }
       if (typeof val === "undefined") continue;
       let pretty: string;
       if (typeof val === "string") pretty = val;
       else {
-        try { pretty = JSON.stringify(val, null, 2); } catch { pretty = String(val); }
+        try {
+          pretty = JSON.stringify(val, null, 2);
+        } catch {
+          pretty = String(val);
+        }
       }
       const name = (n.data as any)?.name || "End";
       parts.push(`${name}:\n\n${pretty}`);
@@ -102,7 +116,8 @@ export default function App() {
   const durationMs = run.startedAt
     ? Math.max(0, (run.endedAt ?? now) - run.startedAt)
     : undefined;
-  const durationLabel = durationMs != null ? `${(durationMs / 1000).toFixed(2)}s` : "—";
+  const durationLabel =
+    durationMs != null ? `${(durationMs / 1000).toFixed(2)}s` : "—";
 
   // Direct ignite: simple and explicit, no globals
   const runFlow = () => ignite(nodes, edges);
@@ -110,15 +125,20 @@ export default function App() {
   // Maintain compatibility with Entry node's local Ignite button
   useEffect(() => {
     const onIgnite = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
+      const detail = (e as CustomEvent).detail as
+        | { entryId?: string | null }
+        | undefined;
       ignite(nodes, edges, detail?.entryId ?? undefined);
     };
     window.addEventListener("engine:ignite", onIgnite as EventListener);
-    return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
+    return () =>
+      window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
   // Bookmarks
-  const [bookmarks, setBookmarks] = useState<{ name: string; savedAt: number }[]>([]);
+  const [bookmarks, setBookmarks] = useState<
+    { name: string; savedAt: number }[]
+  >([]);
   useEffect(() => {
     if (!dbReady) return;
     try {
@@ -126,7 +146,12 @@ export default function App() {
       const raw = all["bookmarks"] ?? "[]";
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        setBookmarks(parsed.map((b: any) => ({ name: String(b.name), savedAt: Number(b.savedAt || 0) })));
+        setBookmarks(
+          parsed.map((b: any) => ({
+            name: String(b.name),
+            savedAt: Number(b.savedAt || 0),
+          }))
+        );
       }
     } catch {}
   }, [dbReady]);
@@ -136,12 +161,33 @@ export default function App() {
       const all = dbLoadSettings();
       const raw = all["bookmarks"] ?? "[]";
       let arr: any[] = [];
-      try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) arr = parsed; } catch {}
-      const snapNodes = nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, data: n.data }));
-      const snapEdges = edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: (e as any).sourceHandle ?? null, targetHandle: (e as any).targetHandle ?? null }));
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) arr = parsed;
+      } catch {}
+      const snapNodes = nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        data: n.data,
+      }));
+      const snapEdges = edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: (e as any).sourceHandle ?? null,
+        targetHandle: (e as any).targetHandle ?? null,
+      }));
       const idx = arr.findIndex((b) => b && b.name === name);
-      const entry = { name, nodes: snapNodes, edges: snapEdges, savedAt: Date.now() };
-      if (idx >= 0) arr[idx] = entry; else arr.push(entry);
+      const entry = {
+        name,
+        nodes: snapNodes,
+        edges: snapEdges,
+        savedAt: Date.now(),
+      };
+      if (idx >= 0) arr[idx] = entry;
+      else arr.push(entry);
       saveSetting("bookmarks", JSON.stringify(arr));
       setBookmarks(arr.map((b) => ({ name: b.name, savedAt: b.savedAt })));
     } catch {}
@@ -154,28 +200,65 @@ export default function App() {
       if (!Array.isArray(parsed)) return;
       const found = parsed.find((b: any) => b && b.name === name);
       if (!found) return;
-      const n = (found.nodes || []).map((x: any) => ({ id: String(x.id), type: String(x.type), position: { x: Number(x.x) || 0, y: Number(x.y) || 0 }, data: x.data || {} }));
-      const e = (found.edges || []).map((x: any) => ({ id: String(x.id), source: String(x.source), target: String(x.target), sourceHandle: x.sourceHandle ?? null, targetHandle: x.targetHandle ?? null }));
+      const n = (found.nodes || []).map((x: any) => ({
+        id: String(x.id),
+        type: String(x.type),
+        position: { x: Number(x.x) || 0, y: Number(x.y) || 0 },
+        data: x.data || {},
+      }));
+      const e = (found.edges || []).map((x: any) => ({
+        id: String(x.id),
+        source: String(x.source),
+        target: String(x.target),
+        sourceHandle: x.sourceHandle ?? null,
+        targetHandle: x.targetHandle ?? null,
+      }));
       setNodes(n);
       setEdges(e);
     } catch {}
   };
 
+  // Bridge events so child components don’t need props for global actions
+  useEffect(() => {
+    const onSave = (e: Event) => {
+      const name = (e as CustomEvent).detail?.name as string | undefined;
+      if (name) saveBookmark(name);
+    };
+    const onLoad = (e: Event) => {
+      const name = (e as CustomEvent).detail?.name as string | undefined;
+      if (name) loadBookmark(name);
+    };
+    const onSetType = (e: Event) => {
+      const t = (e as CustomEvent).detail?.type as string | undefined;
+      if (t) setNewNodeType(t as NewNodeType);
+    };
+    window.addEventListener("graph:saveBookmark", onSave as EventListener);
+    window.addEventListener("graph:loadBookmark", onLoad as EventListener);
+    window.addEventListener("graph:setNewNodeType", onSetType as EventListener);
+    return () => {
+      window.removeEventListener("graph:saveBookmark", onSave as EventListener);
+      window.removeEventListener("graph:loadBookmark", onLoad as EventListener);
+      window.removeEventListener("graph:setNewNodeType", onSetType as EventListener);
+    };
+  }, []);
+
   // header manages provider list for API keys dropdown
 
   return (
     <div className="app">
-      <Header
-        isBusy={isBusy}
-        newNodeType={newNodeType}
-        onChangeNewNodeType={(v) => setNewNodeType(v as any)}
-        onAddNode={addNode}
-        onSaveBookmark={saveBookmark}
-        bookmarks={bookmarks}
-        onLoadBookmark={loadBookmark}
-      />
-      <main className="app__main" style={{ gridTemplateColumns: `1fr 6px ${sidebarVisible ? `${sidebarWidth}px` : '0px'}` }}>
-        <div className="main-left" style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}>
+      <Header onAddNode={addNode} />
+      <main
+        className="app__main"
+        style={{
+          gridTemplateColumns: `1fr 6px ${
+            sidebarVisible ? `${sidebarWidth}px` : "0px"
+          }`,
+        }}
+      >
+        <div
+          className="main-left"
+          style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}
+        >
           <div className="graph">
             <GraphCanvas
               nodes={nodes}
@@ -210,12 +293,22 @@ export default function App() {
             }}
           />
           <footer className="app__footer" aria-live="polite">
-            <div style={{ display: "flex", gap: 24, alignItems: "flex-start", overflowX: "auto" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 24,
+                alignItems: "flex-start",
+                overflowX: "auto",
+              }}
+            >
               <div style={{ whiteSpace: "nowrap", color: "var(--muted)" }}>
-                Tokens: <strong>{tokenUsageTotal || 0}</strong> · Time: <strong>{durationLabel}</strong>
+                Tokens: <strong>{tokenUsageTotal || 0}</strong> · Time:{" "}
+                <strong>{durationLabel}</strong>
               </div>
               {endSummaries.length ? (
-                <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                <div
+                  style={{ display: "flex", gap: 16, alignItems: "flex-start" }}
+                >
                   {endSummaries.map((md, i) => (
                     <div key={i} style={{ minWidth: 0 }}>
                       <MarkdownView text={md} />
@@ -258,20 +351,47 @@ export default function App() {
             }}
           >
             {sidebarVisible ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <polyline points="15 18 9 12 15 6" />
               </svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             )}
           </button>
         </div>
-        <aside className="sidebar" aria-label="Sidebar" style={{ width: sidebarVisible ? `${sidebarWidth}px` : 0, display: sidebarVisible ? 'flex' : 'none' }}>
+        <aside
+          className="sidebar"
+          aria-label="Sidebar"
+          style={{
+            width: sidebarVisible ? `${sidebarWidth}px` : 0,
+            display: sidebarVisible ? "flex" : "none",
+          }}
+        >
           {(() => {
             const liveSelected = selected
-              ? (nodes.find((n) => n.id === selected.id) ?? null)
+              ? nodes.find((n) => n.id === selected.id) ?? null
               : null;
             const mcpOptions = nodes
               .filter((n) => n.type === "mcp")

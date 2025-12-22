@@ -2,19 +2,67 @@
   "provider": "anthropic",
   "models": [
     {
-      "id": "claude-3-5-sonnet",
+      "id": "claude-sonnet-4-5-20250929",
+      "name": "Claude Sonnet 4.5",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "Latest balanced flagship for agents and coding"
+    },
+    {
+      "id": "claude-opus-4-5-20251101",
+      "name": "Claude Opus 4.5",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "Premium model with maximum intelligence"
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "name": "Claude Haiku 4.5",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "Fastest Claude with near‑frontier intelligence"
+    },
+    {
+      "id": "claude-opus-4-1-20250805",
+      "name": "Claude Opus 4.1",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "Most capable Claude for specialized reasoning"
+    },
+    {
+      "id": "claude-opus-4-20250514",
+      "name": "Claude Opus 4",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "Previous flagship with strong reasoning and coding"
+    },
+    {
+      "id": "claude-sonnet-4-20250514",
+      "name": "Claude Sonnet 4",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "High‑performance general model"
+    },
+    {
+      "id": "claude-3-7-sonnet-20250219",
+      "name": "Claude 3.7 Sonnet",
+      "type": "chat",
+      "context_window": 200000,
+      "description": "High‑performance model with extended thinking (legacy)"
+    },
+    {
+      "id": "claude-3-5-sonnet-20241022",
       "name": "Claude 3.5 Sonnet",
       "type": "chat",
       "context_window": 200000,
-      "description": "Strong general model with tool use and JSON output"
+      "description": "Previous intelligent model (legacy)"
     },
     {
-      "id": "claude-3-5-haiku",
+      "id": "claude-3-5-haiku-20241022",
       "name": "Claude 3.5 Haiku",
       "type": "chat",
       "context_window": 200000,
-      "description": "Fast, cost‑effective Claude for iterative development"
+      "description": "Fast, cost‑effective Claude (legacy)"
     }
   ]
 }
-
