@@ -63,7 +63,7 @@
 - Footer is vertically resizable via a horizontal divider between the graph and footer. Height persists in settings (`settings.footer_height`). Double‑click the divider to reset to 200px.
 - Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
 - Sidebar sections for LLM nodes:
-- "LLM Settings": provider (dropdown populated from `GET /providers`), model, temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
+- "LLM Settings": provider (dropdown from `GET /providers`), model (dropdown from `GET /model?provider=…`), temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).
 - "Outputs": JSON Pointers only (`outputPointers`). The Response Schema is not part of the Outputs section.
 

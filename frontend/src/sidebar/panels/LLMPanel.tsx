@@ -3,7 +3,7 @@ import { Button, Checkbox, Select, Text, TextArea, TextField } from "@radix-ui/t
 import type { Node } from "reactflow";
 import type { LLMData, NodeData } from "../../types";
 import { useEngineStore } from "../../engine/store";
-import { getBackendClient } from "../../engine/backendClient";
+import { getBackendClient, rawGet } from "../../engine/backendClient";
 import SchemaEditor from "../components/SchemaEditor";
 import LLMOutputPointersEditor from "../components/LLMOutputPointersEditor";
 
@@ -91,6 +91,11 @@ export default function LLMPanel({
 }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [providerOptions, setProviderOptions] = React.useState<string[]>([]);
+  const provider = (draft as LLMData).provider ?? "";
+  const [modelOptions, setModelOptions] = React.useState<
+    { id: string; name?: string; description?: string }[]
+  >([]);
+  const [modelsLoading, setModelsLoading] = React.useState(false);
   React.useEffect(() => {
     (async () => {
       try {
@@ -102,6 +107,32 @@ export default function LLMPanel({
       }
     })();
   }, []);
+
+  // Load models when provider changes
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!provider) {
+        setModelOptions([]);
+        return;
+      }
+      setModelsLoading(true);
+      try {
+        const data = await rawGet<{ provider: string; models: any[] }>(
+          `/model?provider=${encodeURIComponent(provider)}`,
+        );
+        const list = Array.isArray(data?.models) ? data.models : [];
+        if (!cancelled) setModelOptions(list.map((m: any) => ({ id: String(m.id), name: m.name, description: m.description })));
+      } catch {
+        if (!cancelled) setModelOptions([]);
+      } finally {
+        if (!cancelled) setModelsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider]);
 
   return (
     <>
@@ -146,14 +177,26 @@ export default function LLMPanel({
             <div className="help">Empty = model default</div>
           </label>
           <label className="field">
-            <Text as="span" weight="medium">
-              Model
-            </Text>
-            <TextField.Root
+            <Text as="span" weight="medium">Model</Text>
+            <Select.Root
               value={(draft as LLMData).model ?? ""}
-              onChange={(e) => onPatch({ model: (e.target as HTMLInputElement).value })}
-              disabled={isBusy}
-            />
+              onValueChange={(val) => onPatch({ model: val })}
+              disabled={isBusy || !provider || modelsLoading}
+            >
+              <Select.Trigger placeholder={provider ? (modelsLoading ? "Loading models…" : "Select model…") : "Select provider first…"} />
+              <Select.Content>
+                {modelOptions.map((m) => (
+                  <Select.Item key={m.id} value={m.id}>
+                    {m.name ?? m.id}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+            {(draft as LLMData).model && (
+              <div className="help">
+                {modelOptions.find((m) => m.id === (draft as LLMData).model)?.description || (draft as LLMData).model}
+              </div>
+            )}
           </label>
           <label className="field">
             <Text as="span" weight="medium">
