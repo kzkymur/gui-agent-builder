@@ -171,7 +171,9 @@ export function loadSettings(): Record<string, string> {
 
 export function saveSetting(key: string, value: string): void {
   if (!DB) throw new Error("DB not initialized");
-  const stmt = DB.prepare("INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value");
+  const stmt = DB.prepare(
+    "INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+  );
   stmt.run([key, value]);
   stmt.free();
   exportAndPersist();

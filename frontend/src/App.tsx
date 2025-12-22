@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from "react";
+import FooterStatus from "./components/FooterStatus";
 import Header from "./components/Header";
-import "reactflow/dist/style.css";
-import "./index.css";
-import type { Edge, Node } from "reactflow";
+import { ignite } from "./engine/runtime";
 import { useSettingsStore } from "./engine/settings";
 import GraphCanvas from "./graph/GraphCanvas";
+import { type NewNodeType, makeDefaultNode } from "./graph/factory";
+import { useGraphUI } from "./graph/uiStore";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
 import type { NodeData } from "./types";
-import FooterStatus from "./components/FooterStatus";
-import { makeDefaultNode, type NewNodeType } from "./graph/factory";
-import { useGraphUI } from "./graph/uiStore";
-import { ignite } from "./engine/runtime";
+import "./index.css";
+import type { Edge, Node } from "reactflow";
+import "reactflow/dist/style.css";
 // no direct DB access here; children/hooks handle it
 
 // Simple hook for Delete key handling
@@ -20,16 +20,14 @@ function useDeleteSelected(
   nodes: Node<NodeData>[],
   edges: Edge[],
   setNodes: (n: Node<NodeData>[]) => void,
-  setEdges: (e: Edge[]) => void
+  setEdges: (e: Edge[]) => void,
 ) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete") return;
       if (!selected) return;
       const nextNodes = nodes.filter((n) => n.id !== selected.id);
-      const nextEdges = edges.filter(
-        (e) => e.source !== selected.id && e.target !== selected.id
-      );
+      const nextEdges = edges.filter((e) => e.source !== selected.id && e.target !== selected.id);
       setNodes(nextNodes);
       setEdges(nextEdges);
     };
@@ -57,11 +55,13 @@ export default function App() {
     const newNode = makeDefaultNode(newNodeType, nodes.length);
     const next = [...nodes, newNode];
     setNodes(next);
-    try { useGraphUI.getState().setNodes(next as any); } catch {}
+    try {
+      useGraphUI.getState().setNodes(next);
+    } catch {}
   };
 
   const selectedId = useGraphUI((s) => s.selectedId);
-  const selected = selectedId ? nodes.find((n) => n.id === selectedId) ?? null : null;
+  const selected = selectedId ? (nodes.find((n) => n.id === selectedId) ?? null) : null;
   useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
 
   // Load settings from DB when ready
@@ -75,14 +75,11 @@ export default function App() {
   // Maintain compatibility with Entry node's local Ignite button
   useEffect(() => {
     const onIgnite = (e: Event) => {
-      const detail = (e as CustomEvent).detail as
-        | { entryId?: string | null }
-        | undefined;
+      const detail = (e as CustomEvent).detail as { entryId?: string | null } | undefined;
       ignite(nodes, edges, detail?.entryId ?? undefined);
     };
     window.addEventListener("engine:ignite", onIgnite as EventListener);
-    return () =>
-      window.removeEventListener("engine:ignite", onIgnite as EventListener);
+    return () => window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
   // Bookmarks are handled entirely inside the useBookmarks hook and Header.
@@ -103,17 +100,19 @@ export default function App() {
   useEffect(() => {
     if (!dbReady) return;
     try {
-      useGraphUI.getState().init(nodes as any, edges as any);
+      useGraphUI.getState().init(nodes, edges);
     } catch {}
-  }, [dbReady]);
+  }, [dbReady, nodes, edges]);
 
   // Keep App in sync when graph UI store changes (user drags nodes, edits in sidebar)
   useEffect(() => {
     const unsub = useGraphUI.subscribe((state, prev) => {
-      if (state.nodes !== prev.nodes) setNodes(state.nodes as any);
-      if (state.edges !== prev.edges) setEdges(state.edges as any);
+      if (state.nodes !== prev.nodes) setNodes(state.nodes);
+      if (state.edges !== prev.edges) setEdges(state.edges);
     });
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, [setNodes, setEdges]);
 
   // header manages provider list for API keys dropdown
@@ -124,15 +123,10 @@ export default function App() {
       <main
         className="app__main"
         style={{
-          gridTemplateColumns: `1fr 6px ${
-            sidebarVisible ? `${sidebarWidth}px` : "0px"
-          }`,
+          gridTemplateColumns: `1fr 6px ${sidebarVisible ? `${sidebarWidth}px` : "0px"}`,
         }}
       >
-        <div
-          className="main-left"
-          style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}
-        >
+        <div className="main-left" style={{ gridTemplateRows: `1fr 6px ${footerHeight}px` }}>
           <div className="graph">
             <GraphCanvas />
           </div>
@@ -179,6 +173,7 @@ export default function App() {
         >
           <button
             className="v-resizer__toggle"
+            type="button"
             title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
             aria-label={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
             onMouseDown={(e) => e.stopPropagation()}

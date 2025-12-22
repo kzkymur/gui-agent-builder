@@ -1,11 +1,11 @@
-import React from "react";
 import { Button, Checkbox, Select, Text, TextArea, TextField } from "@radix-ui/themes";
+import React from "react";
 import type { Node } from "reactflow";
-import type { LLMData, NodeData } from "../../types";
-import { useEngineStore } from "../../engine/store";
 import { getBackendClient, rawGet } from "../../engine/backendClient";
-import SchemaEditor from "../components/SchemaEditor";
+import { useEngineStore } from "../../engine/store";
+import type { LLMData, NodeData } from "../../types";
 import LLMOutputPointersEditor from "../components/LLMOutputPointersEditor";
+import SchemaEditor from "../components/SchemaEditor";
 
 export function InputsEditor({
   inputs,
@@ -16,10 +16,7 @@ export function InputsEditor({
 }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const list = inputs ?? [];
-  const setAt = (
-    i: number,
-    patch: Partial<{ key: string; description: string }>,
-  ) => {
+  const setAt = (i: number, patch: Partial<{ key: string; description: string }>) => {
     const next = list.map((item, idx) => (idx === i ? { ...item, ...patch } : item));
     onChange(next);
   };
@@ -32,7 +29,7 @@ export function InputsEditor({
       </Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.map((it, i) => (
-          <div key={i} style={{ display: "grid", gap: 6 }}>
+          <div key={`${it.key || "k"}-${i}`} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <TextField.Root
                 style={{ width: "30%" }}
@@ -45,9 +42,7 @@ export function InputsEditor({
                 style={{ flex: 1 }}
                 placeholder="description"
                 value={it.description ?? ""}
-                onChange={(e) =>
-                  setAt(i, { description: (e.target as HTMLInputElement).value })
-                }
+                onChange={(e) => setAt(i, { description: (e.target as HTMLInputElement).value })}
                 disabled={isBusy}
               />
               <Button
@@ -71,8 +66,8 @@ export function InputsEditor({
         </div>
       </div>
       <div className="help">
-        Each input handle has a short <b>key</b> and a longer <b>description</b> that becomes
-        part of the prompt.
+        Each input handle has a short <b>key</b> and a longer <b>description</b> that becomes part
+        of the prompt.
       </div>
     </div>
   );
@@ -100,9 +95,14 @@ export default function LLMPanel({
     (async () => {
       try {
         const res = await getBackendClient().GET("/providers");
-        const providers = (res && typeof res === "object" && res.data && typeof res.data === "object" && Array.isArray((res.data as { providers?: unknown }).providers))
-          ? (res.data as { providers: Array<{ id: unknown }> }).providers
-          : [];
+        const providers =
+          res &&
+          typeof res === "object" &&
+          res.data &&
+          typeof res.data === "object" &&
+          Array.isArray((res.data as { providers?: unknown }).providers)
+            ? (res.data as { providers: Array<{ id: unknown }> }).providers
+            : [];
         const ids = providers.map((p) => String(p.id));
         setProviderOptions(ids);
       } catch {
@@ -121,11 +121,20 @@ export default function LLMPanel({
       }
       setModelsLoading(true);
       try {
-        const data = await rawGet<{ provider: string; models: any[] }>(
-          `/model?provider=${encodeURIComponent(provider)}`,
-        );
+        const data = await rawGet<{
+          provider: string;
+          models: Array<{ id: string; name?: string; description?: string }>;
+        }>(`/model?provider=${encodeURIComponent(provider)}`);
         const list = Array.isArray(data?.models) ? data.models : [];
-        if (!cancelled) setModelOptions(list.map((m: any) => ({ id: String(m.id), name: m.name, description: m.description })));
+        if (!cancelled) {
+          const opts = list.map((m) => {
+            const item: { id: string; name?: string; description?: string } = { id: String(m.id) };
+            if (m.name) item.name = m.name;
+            if (m.description) item.description = m.description;
+            return item;
+          });
+          setModelOptions(opts);
+        }
       } catch {
         if (!cancelled) setModelOptions([]);
       } finally {
@@ -144,7 +153,7 @@ export default function LLMPanel({
       <details>
         <summary style={{ cursor: "pointer", userSelect: "none" }}>Detail Settings</summary>
         <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          <label className="field">
+          <div className="field">
             <Text as="span" weight="medium">
               Provider
             </Text>
@@ -162,15 +171,21 @@ export default function LLMPanel({
                 ))}
               </Select.Content>
             </Select.Root>
-          </label>
-          <label className="field">
-            <Text as="span" weight="medium">Max Tokens</Text>
+          </div>
+          <div className="field">
+            <Text as="span" weight="medium">
+              Max Tokens
+            </Text>
             <TextField.Root
               type="number"
               inputMode="numeric"
               min="1"
               step="1"
-              value={typeof (draft as LLMData).maxTokens === "number" ? String((draft as LLMData).maxTokens) : ""}
+              value={
+                typeof (draft as LLMData).maxTokens === "number"
+                  ? String((draft as LLMData).maxTokens)
+                  : ""
+              }
               onChange={(e) => {
                 const v = (e.target as HTMLInputElement).value;
                 onPatch({ maxTokens: v === "" ? null : Number(v) });
@@ -178,15 +193,25 @@ export default function LLMPanel({
               disabled={isBusy}
             />
             <div className="help">Empty = model default</div>
-          </label>
-          <label className="field">
-            <Text as="span" weight="medium">Model</Text>
+          </div>
+          <div className="field">
+            <Text as="span" weight="medium">
+              Model
+            </Text>
             <Select.Root
               value={(draft as LLMData).model ?? ""}
               onValueChange={(val) => onPatch({ model: val })}
               disabled={isBusy || !provider || modelsLoading}
             >
-              <Select.Trigger placeholder={provider ? (modelsLoading ? "Loading models…" : "Select model…") : "Select provider first…"} />
+              <Select.Trigger
+                placeholder={
+                  provider
+                    ? modelsLoading
+                      ? "Loading models…"
+                      : "Select model…"
+                    : "Select provider first…"
+                }
+              />
               <Select.Content>
                 {modelOptions.map((m) => (
                   <Select.Item key={m.id} value={m.id}>
@@ -197,35 +222,37 @@ export default function LLMPanel({
             </Select.Root>
             {(draft as LLMData).model && (
               <div className="help">
-                {modelOptions.find((m) => m.id === (draft as LLMData).model)?.description || (draft as LLMData).model}
+                {modelOptions.find((m) => m.id === (draft as LLMData).model)?.description ||
+                  (draft as LLMData).model}
               </div>
             )}
-          </label>
-          <label className="field">
+          </div>
+          <div className="field">
             <Text as="span" weight="medium">
               Temperature
             </Text>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {(() => {
-                const t = typeof (draft as LLMData).temperature === "number"
-                  ? (draft as LLMData).temperature as number
-                  : 0.7;
+                const t =
+                  typeof (draft as LLMData).temperature === "number"
+                    ? ((draft as LLMData).temperature as number)
+                    : 0.7;
                 return (
                   <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={t}
-                onChange={(e) => onPatch({ temperature: Number(e.target.value) })}
-                disabled={isBusy}
-                style={{ flex: 1 }}
-              />
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={t}
+                    onChange={(e) => onPatch({ temperature: Number(e.target.value) })}
+                    disabled={isBusy}
+                    style={{ flex: 1 }}
+                  />
                 );
               })()}
               <code style={{ minWidth: 42, textAlign: "right" }}>
                 {typeof (draft as LLMData).temperature === "number"
-                  ? (draft as LLMData).temperature!.toFixed(2)
+                  ? (draft as LLMData).temperature?.toFixed(2)
                   : "—"}
               </code>
               <Button
@@ -240,11 +267,11 @@ export default function LLMPanel({
               </Button>
             </div>
             <div className="help">0–1 (Reset = provider default)</div>
-          </label>
+          </div>
         </div>
       </details>
 
-      <label className="field">
+      <div className="field">
         <Text as="span" weight="medium">
           MCP Servers
         </Text>
@@ -255,7 +282,7 @@ export default function LLMPanel({
             {mcpOptions.map((opt) => {
               const selected = ((draft as LLMData).mcpServers ?? []).includes(opt.id);
               return (
-                <label key={opt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div key={opt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Checkbox
                     checked={selected}
                     onCheckedChange={(checked) => {
@@ -269,13 +296,13 @@ export default function LLMPanel({
                     disabled={isBusy}
                   />
                   <span>{opt.name}</span>
-                </label>
+                </div>
               );
             })}
           </div>
         )}
         <div className="help">Check to enable servers for this LLM.</div>
-      </label>
+      </div>
 
       <hr className="divider" />
       <div className="section-title">Inputs</div>
@@ -284,7 +311,7 @@ export default function LLMPanel({
         onChange={(inp) => onPatch({ inputs: inp })}
       />
 
-      <label className="field">
+      <div className="field">
         <Text as="span" weight="medium">
           System Prompt
         </Text>
@@ -296,18 +323,17 @@ export default function LLMPanel({
           onChange={(e) => onPatch({ system: e.target.value })}
           disabled={isBusy}
         />
-      </label>
+      </div>
 
-      <label className="field">
+      <div className="field">
         <SchemaEditor
           value={(draft as LLMData).responseSchema}
           onChange={(schema) => onPatch({ responseSchema: schema })}
         />
         <div className="help">
-          Describe the full model response. Output pointers will reference paths within this
-          schema.
+          Describe the full model response. Output pointers will reference paths within this schema.
         </div>
-      </label>
+      </div>
 
       <hr className="divider" />
       <div className="section-title">Outputs (JSON Pointers)</div>

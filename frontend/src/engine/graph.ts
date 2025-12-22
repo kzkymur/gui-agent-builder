@@ -10,7 +10,10 @@ function handleLabelFor(
   if (!nodeId || !handleId) return null;
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return null;
-  const data: any = node.data ?? {};
+  const data = (node.data ?? {}) as Partial<NodeData> & {
+    inputs?: Array<{ key?: string }>;
+    outputPointers?: string[];
+  };
   switch (node.type) {
     case "entry": {
       // entry source handles: out-<idx> map to inputs[idx].key
@@ -61,13 +64,23 @@ export function buildGraphSnapshot(nodes: Node<NodeData>[], edges: Edge[]) {
       id: e.id,
       from: {
         node: e.source,
-        handleId: (e as any).sourceHandle ?? null,
-        handleLabel: handleLabelFor(nodes, e.source, (e as any).sourceHandle, "source"),
+        handleId: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
+        handleLabel: handleLabelFor(
+          nodes,
+          e.source,
+          (e as { sourceHandle?: string | null }).sourceHandle,
+          "source",
+        ),
       },
       to: {
         node: e.target,
-        handleId: (e as any).targetHandle ?? null,
-        handleLabel: handleLabelFor(nodes, e.target, (e as any).targetHandle, "target"),
+        handleId: (e as { targetHandle?: string | null }).targetHandle ?? null,
+        handleLabel: handleLabelFor(
+          nodes,
+          e.target,
+          (e as { targetHandle?: string | null }).targetHandle,
+          "target",
+        ),
       },
     })),
   };

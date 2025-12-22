@@ -40,7 +40,7 @@ export function useGraph() {
         setNodes(
           persisted.nodes.map((n) => ({
             id: n.id,
-            type: n.type as any,
+            type: (n.type ?? "default") as Node<NodeData>["type"],
             position: { x: n.x, y: n.y },
             data: normalizeNodeData(n.type as string, n.data),
           })),
@@ -75,7 +75,7 @@ export function useGraph() {
         edges.map((e) => ({
           id: e.id,
           source: e.source,
-          target: e.target!,
+          target: e.target || "",
           sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
           targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null,
         })),

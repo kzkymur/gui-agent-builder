@@ -24,8 +24,8 @@ export type OpenAPIOperation = {
     in: "path" | "query" | "header" | "cookie";
     required?: boolean;
   }>;
-  requestBody?: any; // left generic; caller passes already-formed body
-  responses?: any;
+  requestBody?: unknown; // left generic; caller passes already-formed body
+  responses?: unknown;
   security?: SecurityRequirement[];
 };
 
@@ -45,7 +45,7 @@ export type CallOptions = {
   pathParams?: Record<string, string | number>;
   query?: Record<string, string | number | boolean | Array<string | number | boolean> | undefined>;
   headers?: Record<string, string>;
-  body?: any;
+  body?: unknown;
   signal?: AbortSignal;
 };
 
@@ -60,12 +60,12 @@ export function createClient(
   auth?: ClientAuth,
   fetchImpl: typeof fetch = fetch,
 ): OpenAPIClient {
-  const serverUrl = (spec.servers && spec.servers[0]?.url) || "";
+  const serverUrl = spec.servers?.[0]?.url || "";
 
   const opIndex = new Map<string, { method: HttpMethod; path: string }>();
   for (const [path, methods] of Object.entries(spec.paths || {})) {
     for (const method of Object.keys(methods) as HttpMethod[]) {
-      const op = (methods as any)[method] as OpenAPIOperation;
+      const op = (methods as Record<HttpMethod, OpenAPIOperation | undefined>)[method];
       if (op?.operationId) opIndex.set(op.operationId, { method, path });
     }
   }
@@ -74,7 +74,7 @@ export function createClient(
     const out: Array<{ operationId?: string; method: HttpMethod; path: string }> = [];
     for (const [path, methods] of Object.entries(spec.paths || {})) {
       for (const method of Object.keys(methods) as HttpMethod[]) {
-        const op = (methods as any)[method] as OpenAPIOperation;
+        const op = (methods as Record<HttpMethod, OpenAPIOperation | undefined>)[method];
         const item: { method: HttpMethod; path: string; operationId?: string } = {
           method,
           path,
@@ -92,7 +92,9 @@ export function createClient(
     headers: Record<string, string>,
     url: URL,
   ) {
-    const op = (spec.paths?.[path] as any)?.[method] as OpenAPIOperation | undefined;
+    const op = (spec.paths?.[path] as Partial<Record<HttpMethod, OpenAPIOperation>> | undefined)?.[
+      method
+    ];
     const requirements = op?.security ?? spec.security ?? [];
     const schemes = spec.components?.securitySchemes || {};
     for (const req of requirements) {
@@ -108,7 +110,7 @@ export function createClient(
         } else if (scheme.type === "http" && scheme.scheme === "bearer") {
           const token = auth?.bearer?.[schemeName];
           if (!token) continue;
-          headers["Authorization"] = `Bearer ${token}`;
+          headers.Authorization = `Bearer ${token}`;
         }
       }
     }
@@ -117,7 +119,7 @@ export function createClient(
   function buildUrl(
     base: string,
     path: string,
-    pathParams?: Record<string, any>,
+    pathParams?: Record<string, string | number>,
     query?: CallOptions["query"],
   ): URL {
     let full = (base || "").replace(/\/$/, "") + path; // ensure single slash
@@ -130,8 +132,9 @@ export function createClient(
     if (query) {
       for (const [k, v] of Object.entries(query)) {
         if (v === undefined) continue;
-        if (Array.isArray(v)) v.forEach((item) => url.searchParams.append(k, String(item)));
-        else url.searchParams.set(k, String(v));
+        if (Array.isArray(v)) {
+          for (const item of v) url.searchParams.append(k, String(item));
+        } else url.searchParams.set(k, String(v));
       }
     }
     return url;
@@ -148,15 +151,11 @@ export function createClient(
         : typeof opts.body === "string" || opts.body instanceof Blob
           ? opts.body
           : JSON.stringify(opts.body);
-    if (
-      body &&
-      typeof body === "string" &&
-      !(
-        "content-type" in
-        Object.keys(headers).reduce((a, k) => ({ ...a, [k.toLowerCase()]: headers[k] }), {} as any)
-      )
-    ) {
-      headers["content-type"] = "application/json";
+    if (body && typeof body === "string") {
+      const lower = Object.fromEntries(
+        Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
+      );
+      if (!("content-type" in lower)) headers["content-type"] = "application/json";
     }
     return fetchImpl(url.toString(), {
       method: method.toUpperCase(),

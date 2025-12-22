@@ -43,7 +43,7 @@ export type EngineState = {
   setLatestOutput: (nodeId: string, output: unknown) => void;
   markCompleted: (ok: boolean) => void;
   incError: () => void;
-  addUsage: (usage: any) => void;
+  addUsage: (usage: unknown) => void;
 };
 
 export const useEngineStore = create<EngineState>((set) => ({
@@ -94,8 +94,8 @@ export const useEngineStore = create<EngineState>((set) => ({
     const id = `${nodeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     set((s) => {
       const nodes = { ...s.trace.nodes };
-      const base: TraceNode = { id, nodeId, startedAt: Date.now(), children: [] };
-      if (parentId) (base as any).parentId = parentId;
+      let base: TraceNode = { id, nodeId, startedAt: Date.now(), children: [] };
+      if (parentId) base = { ...base, parentId };
       nodes[id] = base;
       const roots = parentId ? s.trace.roots.slice() : [...s.trace.roots, id];
       if (parentId && nodes[parentId])
@@ -118,7 +118,9 @@ export const useEngineStore = create<EngineState>((set) => ({
   setInputBuf: (nodeId, input) =>
     set((s) => {
       const prev = s.inputBufByNode[nodeId] || {};
-      return { inputBufByNode: { ...s.inputBufByNode, [nodeId]: { ...prev, ...input } } } as Partial<EngineState>;
+      return {
+        inputBufByNode: { ...s.inputBufByNode, [nodeId]: { ...prev, ...input } },
+      } as Partial<EngineState>;
     }),
   setLatestInput: (nodeId, input) =>
     set((s) => ({ latestInputByNode: { ...s.latestInputByNode, [nodeId]: input } })),
@@ -131,24 +133,24 @@ export const useEngineStore = create<EngineState>((set) => ({
     set((s) => {
       try {
         if (!usage || typeof usage !== "object") return {} as Partial<EngineState>;
-        const u = usage as any;
+        const u = usage as {
+          total_tokens?: number;
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          input_tokens?: number;
+          output_tokens?: number;
+        };
         const total = (() => {
           if (typeof u.total_tokens === "number") return u.total_tokens;
           // OpenAI-style legacy
-          if (
-            typeof u.prompt_tokens === "number" ||
-            typeof u.completion_tokens === "number"
-          ) {
+          if (typeof u.prompt_tokens === "number" || typeof u.completion_tokens === "number") {
             return Number(u.prompt_tokens || 0) + Number(u.completion_tokens || 0);
           }
           // Newer input/output naming
-          if (
-            typeof u.input_tokens === "number" ||
-            typeof u.output_tokens === "number"
-          ) {
+          if (typeof u.input_tokens === "number" || typeof u.output_tokens === "number") {
             return Number(u.input_tokens || 0) + Number(u.output_tokens || 0);
           }
-          return NaN;
+          return Number.NaN;
         })();
         if (!Number.isFinite(total)) return {} as Partial<EngineState>;
         return { tokenUsageTotal: (s.tokenUsageTotal || 0) + total } as Partial<EngineState>;

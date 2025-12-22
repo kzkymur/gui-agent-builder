@@ -1,7 +1,6 @@
 import type { Edge, EdgeChange, Node, NodeChange } from "reactflow";
 import { applyEdgeChanges, applyNodeChanges } from "reactflow";
 import create from "zustand";
-import { persist } from "zustand/middleware";
 import { initDB, loadGraph, saveGraph } from "../db/sqlite";
 import type { NodeData } from "../types";
 
@@ -31,16 +30,16 @@ export const useGraphStore = create<GraphState>()((set, get) => ({
       ready: true,
       nodes: nodes.map((n) => ({
         id: n.id,
-        type: n.type as any,
+        type: (n.type ?? "default") as Node<NodeData>["type"],
         position: { x: n.x, y: n.y },
-        data: n.data as any,
+        data: n.data as NodeData,
       })),
       edges: edges.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
-        sourceHandle: (e as any).sourceHandle ?? undefined,
-        targetHandle: (e as any).targetHandle ?? undefined,
+        sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
+        targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null,
       })),
     });
   },
@@ -68,9 +67,9 @@ export const useGraphStore = create<GraphState>()((set, get) => ({
       s.edges.map((e) => ({
         id: e.id,
         source: e.source,
-        target: e.target!,
-        sourceHandle: (e as any).sourceHandle ?? null,
-        targetHandle: (e as any).targetHandle ?? null,
+        target: e.target || "",
+        sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
+        targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null,
       })),
     );
   },

@@ -15,7 +15,10 @@ export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
         <>
           <div className="node__handles-left">
             {ins.map((inp, idx) => (
-              <div key={`in-${idx}`} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                key={`${inp.key || "in"}-${idx}`}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
                 <Handle id={`in-${idx}`} type="target" position={Position.Left} />
                 <span title={inp.description} style={{ fontSize: 11, color: "#9ca3af" }}>
                   {inp.key || `in-${idx}`}
@@ -24,9 +27,9 @@ export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
             ))}
           </div>
           <div className="node__handles-right">
-            {outs.map((_, idx) => (
+            {outs.map((val, idx) => (
               <Handle
-                key={`out-${idx}`}
+                key={`${val || "out"}-${idx}`}
                 id={`out-${idx}`}
                 type="source"
                 position={Position.Right}

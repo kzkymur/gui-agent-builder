@@ -60,16 +60,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const all = loadSettings();
       set({
-        apiKey: all["api_key"] ?? "",
+        apiKey: all.api_key ?? "",
         apiKeys: (() => {
           try {
-            const parsed = JSON.parse(all["api_keys"] ?? "{}");
-            return parsed && typeof parsed === "object" ? (parsed as Record<string,string>) : {};
-          } catch { return {}; }
+            const parsed = JSON.parse(all.api_keys ?? "{}");
+            return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+          } catch {
+            return {};
+          }
         })(),
-        sidebarWidth: Number(all["sidebar_width"] ?? 380) || 380,
-        sidebarVisible: (all["sidebar_visible"] ?? "1") !== "0",
-        footerHeight: Number(all["footer_height"] ?? 200) || 200,
+        sidebarWidth: Number(all.sidebar_width ?? 380) || 380,
+        sidebarVisible: (all.sidebar_visible ?? "1") !== "0",
+        footerHeight: Number(all.footer_height ?? 200) || 200,
       });
     } catch {
       // DB may not be ready yet

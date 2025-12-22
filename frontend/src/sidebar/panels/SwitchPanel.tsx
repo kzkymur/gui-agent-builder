@@ -1,14 +1,19 @@
-import React from "react";
 import { Text } from "@radix-ui/themes";
-import type { NodeData } from "../../types";
+import React from "react";
 import { useEngineStore } from "../../engine/store";
+import type { NodeData } from "../../types";
 
-export default function SwitchPanel({ draft, onPatch }: { draft: NodeData; onPatch: (p: Partial<NodeData>) => void }) {
+export default function SwitchPanel({
+  draft,
+  onPatch,
+}: { draft: NodeData; onPatch: (p: Partial<NodeData>) => void }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
-  const thresh = typeof (draft as any).threshold === "number" ? (draft as any).threshold : 0.5;
+  const thresh = typeof draft.threshold === "number" ? draft.threshold : 0.5;
   return (
     <label className="field">
-      <Text as="span" weight="medium">Threshold</Text>
+      <Text as="span" weight="medium">
+        Threshold
+      </Text>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           type="range"
@@ -16,7 +21,7 @@ export default function SwitchPanel({ draft, onPatch }: { draft: NodeData; onPat
           max={1}
           step={0.01}
           value={thresh}
-          onChange={(e) => onPatch({ threshold: Number(e.target.value) } as any)}
+          onChange={(e) => onPatch({ threshold: Number(e.target.value) })}
           disabled={isBusy}
           aria-label="Threshold"
         />
@@ -28,4 +33,3 @@ export default function SwitchPanel({ draft, onPatch }: { draft: NodeData; onPat
     </label>
   );
 }
-

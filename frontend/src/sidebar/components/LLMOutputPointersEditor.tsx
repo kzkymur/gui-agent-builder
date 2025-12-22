@@ -1,5 +1,5 @@
-import React from "react";
 import { Button, IconButton, Text, TextField } from "@radix-ui/themes";
+import React from "react";
 import { useEngineStore } from "../../engine/store";
 
 function isValidJsonPointer(ptr: string): boolean {
@@ -36,12 +36,14 @@ export default function LLMOutputPointersEditor({
 
   return (
     <div className="field">
-      <Text as="span" weight="medium">JSON Pointers (/path)</Text>
+      <Text as="span" weight="medium">
+        JSON Pointers (/path)
+      </Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.length === 0 && <div className="help">No outputs yet. Click “Add Output”.</div>}
         {list.map((ptr, idx) => (
           <div
-            key={idx}
+            key={`ptr-${ptr}`}
             style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr", alignItems: "center" }}
           >
             <div style={{ display: "flex", gap: 6 }}>

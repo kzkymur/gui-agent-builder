@@ -1,5 +1,5 @@
+import { Button, Popover, Select, TextField } from "@radix-ui/themes";
 import React, { useEffect, useState } from "react";
-import { Button, Popover, TextField, Select } from "@radix-ui/themes";
 import { getBackendClient, setBackendBaseUrl } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
 import { useEngineStore } from "../engine/store";
@@ -22,9 +22,14 @@ export default function Header({
     (async () => {
       try {
         const res = await getBackendClient().GET("/providers");
-        const providers = (res && typeof res === "object" && res.data && typeof res.data === "object" && Array.isArray((res.data as { providers?: unknown }).providers))
-          ? (res.data as { providers: Array<{ id: unknown }> }).providers
-          : [];
+        const providers =
+          res &&
+          typeof res === "object" &&
+          res.data &&
+          typeof res.data === "object" &&
+          Array.isArray((res.data as { providers?: unknown }).providers)
+            ? (res.data as { providers: Array<{ id: unknown }> }).providers
+            : [];
         const ids = providers.map((p) => String(p.id));
         setProviderIds(ids);
       } catch {
@@ -39,7 +44,7 @@ export default function Header({
     return () => window.removeEventListener("graph:bookmarks-changed", onChanged);
   }, [refresh]);
 
-  const [selectedBookmark, setSelectedBookmark] = useState<string>("")
+  const [selectedBookmark, setSelectedBookmark] = useState<string>("");
 
   return (
     <header className="app__header">
@@ -63,11 +68,16 @@ export default function Header({
             <Select.Item value="end">End</Select.Item>
           </Select.Content>
         </Select.Root>
-        <Button onClick={() => {
-          // Share selected type with App via a custom event so it can add the correct node
-          window.dispatchEvent(new CustomEvent("graph:setNewNodeType", { detail: { type: newNodeType } }));
-          onAddNode();
-        }} disabled={isBusy}>
+        <Button
+          onClick={() => {
+            // Share selected type with App via a custom event so it can add the correct node
+            window.dispatchEvent(
+              new CustomEvent("graph:setNewNodeType", { detail: { type: newNodeType } }),
+            );
+            onAddNode();
+          }}
+          disabled={isBusy}
+        >
           Add Node
         </Button>
 
@@ -92,7 +102,10 @@ export default function Header({
             onValueChange={(v) => setSelectedBookmark(v)}
             disabled={isBusy || bookmarks.length === 0}
           >
-            <Select.Trigger placeholder={bookmarks.length ? "Choose bookmark…" : "No bookmarks"} style={{ width: 220 }} />
+            <Select.Trigger
+              placeholder={bookmarks.length ? "Choose bookmark…" : "No bookmarks"}
+              style={{ width: 220 }}
+            />
             <Select.Content>
               {bookmarks.map((b) => (
                 <Select.Item key={b.name} value={b.name}>
@@ -133,15 +146,16 @@ export default function Header({
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>No providers</div>
                 ) : (
                   providerIds.map((pid) => (
-                    <label key={pid} className="field">
-                      <span>{pid}</span>
+                    <div key={pid} className="field">
+                      <span id={`api-key-label-${pid}`}>{pid}</span>
                       <TextField.Root
                         type="password"
                         placeholder={`Key for ${pid}`}
                         value={apiKeys[pid] ?? ""}
+                        aria-labelledby={`api-key-label-${pid}`}
                         onChange={(e) => setApiKeyFor(pid, (e.target as HTMLInputElement).value)}
                       />
-                    </label>
+                    </div>
                   ))
                 )}
               </div>

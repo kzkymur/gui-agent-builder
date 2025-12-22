@@ -1,5 +1,5 @@
-import React from "react";
 import { Text, TextArea } from "@radix-ui/themes";
+import React from "react";
 import { useEngineStore } from "../../engine/store";
 
 export default function SchemaEditor({
@@ -25,15 +25,17 @@ export default function SchemaEditor({
       if (parsed && typeof parsed !== "object") {
         error = "Schema must be a JSON object.";
       }
-    } catch (e: any) {
-      error = e?.message || "Invalid JSON";
+    } catch (e: unknown) {
+      error = (e as { message?: string })?.message || "Invalid JSON";
     }
   }
 
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   return (
-    <label className="field">
-      <Text as="span" weight="medium">Response Schema (JSON)</Text>
+    <div className="field">
+      <Text as="span" weight="medium">
+        Response Schema (JSON)
+      </Text>
       <TextArea
         rows={6}
         className="mono"
@@ -64,6 +66,6 @@ export default function SchemaEditor({
         disabled={isBusy}
       />
       {error && <div style={{ color: "var(--danger, #cc3b3b)", fontSize: 12 }}>{error}</div>}
-    </label>
+    </div>
   );
 }

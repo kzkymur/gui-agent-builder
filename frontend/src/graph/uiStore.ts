@@ -1,5 +1,5 @@
-import create from "zustand";
 import type { Edge, Node } from "reactflow";
+import create from "zustand";
 import type { NodeData } from "../types";
 
 type GraphUIState = {
@@ -18,9 +18,16 @@ export const useGraphUI = create<GraphUIState>((set) => ({
   selectedId: null,
   init: (nodes, edges) => set({ nodes, edges }),
   setNodes: (updater) =>
-    set((s) => ({ nodes: typeof updater === "function" ? (updater as any)(s.nodes) : updater })),
+    set((s) => ({
+      nodes:
+        typeof updater === "function"
+          ? (updater as (prev: Node<NodeData>[]) => Node<NodeData>[])(s.nodes)
+          : updater,
+    })),
   setEdges: (updater) =>
-    set((s) => ({ edges: typeof updater === "function" ? (updater as any)(s.edges) : updater })),
+    set((s) => ({
+      edges:
+        typeof updater === "function" ? (updater as (prev: Edge[]) => Edge[])(s.edges) : updater,
+    })),
   setSelected: (id) => set({ selectedId: id }),
 }));
-

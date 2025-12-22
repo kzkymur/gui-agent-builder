@@ -30,13 +30,13 @@ function toHtml(md: string): string {
   });
 
   // Headings #, ##, ### at line start
-  src = src.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
-  src = src.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
-  src = src.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+  src = src.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
+  src = src.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
+  src = src.replace(/^#\s+(.+)$/gm, "<h1>$1</h1>");
 
   // Bold **text** and italic *text*
-  src = src.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  src = src.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  src = src.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  src = src.replace(/\*(.+?)\*/g, "<em>$1</em>");
 
   // Inline code `code`
   src = src.replace(/`([^`]+)`/g, '<code class="mono">$1</code>');
@@ -45,7 +45,7 @@ function toHtml(md: string): string {
   src = src.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (_m, text, url) => {
     const safe = sanitizeUrl(url);
     const t = text as string;
-    return safe ? `<a href="${safe}" target="_blank" rel="noreferrer noopener">${t}</a>` : t;
+    return safe ? `<a href=\"${safe}\" target=\"_blank\" rel=\"noreferrer noopener\">${t}</a>` : t;
   });
 
   // Unordered lists - item
@@ -53,10 +53,10 @@ function toHtml(md: string): string {
     const items = m
       .trim()
       .split(/\n-\s+/)
-      .map((it) => it.replace(/^-/,'').trim())
+      .map((it) => it.replace(/^-/, "").trim())
       .filter(Boolean)
-      .map((li) => `<li>${li}</li>`) 
-      .join('');
+      .map((li) => `<li>${li}</li>`)
+      .join("");
     return `<ul>${items}</ul>`;
   });
 
@@ -64,17 +64,17 @@ function toHtml(md: string): string {
   src = src
     .split(/\n{2,}/)
     .map((block) => {
-      if (/^<h\d|^<ul>|^<pre>/.test(block)) return block; 
-      const withBr = block.replace(/\n/g, '<br/>');
+      if (/^<h\d|^<ul>|^<pre>/.test(block)) return block;
+      const withBr = block.replace(/\n/g, "<br/>");
       return `<p>${withBr}</p>`;
     })
-    .join('');
+    .join("");
 
   return src;
 }
 
 export default function MarkdownView({ text }: { text: string }) {
   const html = React.useMemo(() => toHtml(text || ""), [text]);
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: content is escaped and URLs sanitized in toHtml()
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
-

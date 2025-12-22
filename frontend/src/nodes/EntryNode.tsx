@@ -1,14 +1,13 @@
-import React from "react";
 import { Button } from "@radix-ui/themes";
-import { useEngineStore } from "../engine/store";
+import React from "react";
 import { Handle, Position } from "reactflow";
+import { useEngineStore } from "../engine/store";
 import type { NodeData, RFNodeProps } from "../types";
 import NodeChrome from "./NodeChrome";
 export default function EntryNode({ id, data }: RFNodeProps<NodeData>) {
-  const items: { key: string; value?: string }[] =
-    ((data.inputs as { key: string; value?: string }[] | undefined)) ?? [
-      { key: "user_input", value: "" },
-    ];
+  const items: { key: string; value?: string }[] = (data.inputs as
+    | { key: string; value?: string }[]
+    | undefined) ?? [{ key: "user_input", value: "" }];
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   return (
     <NodeChrome
@@ -38,7 +37,10 @@ export default function EntryNode({ id, data }: RFNodeProps<NodeData>) {
           </div>
           <div className="node__handles-right">
             {items.map((it: { key: string; value?: string }, idx: number) => (
-              <div key={it.key + idx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                key={`${it.key || "k"}-${idx}`}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
                 <span title={it.value} style={{ fontSize: 11, color: "#9ca3af" }}>
                   {it.key || `out-${idx}`}
                 </span>
@@ -49,7 +51,9 @@ export default function EntryNode({ id, data }: RFNodeProps<NodeData>) {
         </>
       }
     >
-      <div className="muted">Inputs: {items.map((i: { key: string }) => i.key).join(", ") || "none"}</div>
+      <div className="muted">
+        Inputs: {items.map((i: { key: string }) => i.key).join(", ") || "none"}
+      </div>
     </NodeChrome>
   );
 }

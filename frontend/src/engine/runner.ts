@@ -9,10 +9,7 @@ function getOutgoing(edges: Edge[], sourceId: string) {
   return edges.filter((e) => e.source === sourceId);
 }
 
-function pickLLMOutValue(
-  output: unknown,
-  pointer: string | undefined
-): unknown {
+function pickLLMOutValue(output: unknown, pointer: string | undefined): unknown {
   if (!pointer) return undefined;
   if (!pointer.startsWith("/")) return undefined;
   try {
@@ -26,18 +23,14 @@ function pickLLMOutValue(
   }
 }
 
-function isNodeReady(
-  target: Node<NodeData>,
-  buf: Record<string, unknown>
-): boolean {
+function isNodeReady(target: Node<NodeData>, buf: Record<string, unknown>): boolean {
   // Entry nodes don't receive inputs here; Switch requires both gate and signal; LLM requires all declared input keys
   if (target.type === "llm") {
-    const cfg = (target.data || {}) as any;
+    const cfg = (target.data || {}) as Partial<{ inputs?: Array<{ key?: string }> }>;
     const inputs = Array.isArray(cfg.inputs) ? cfg.inputs : [];
     if (inputs.length === 0) return true; // nothing to wait for
-    return inputs.every((it: any, idx: number) => {
-      const k =
-        typeof it?.key === "string" && it.key.length ? it.key : `in${idx}`;
+    return inputs.every((it: { key?: string }, idx: number) => {
+      const k = typeof it?.key === "string" && it.key.length ? it.key : `in${idx}`;
       return k in buf;
     });
   }
@@ -49,18 +42,14 @@ function isNodeReady(
   return true;
 }
 
-export function ignite(
-  nodes: Node<NodeData>[],
-  edges: Edge[],
-  entryIds?: string | string[]
-) {
+export function ignite(nodes: Node<NodeData>[], edges: Edge[], entryIds?: string | string[]) {
   const store = useEngineStore.getState();
   store.resetRun();
   const ids: string[] = Array.isArray(entryIds)
     ? entryIds
     : typeof entryIds === "string" && entryIds
-    ? [entryIds]
-    : nodes.filter((n) => n.type === "entry").map((n) => n.id);
+      ? [entryIds]
+      : nodes.filter((n) => n.type === "entry").map((n) => n.id);
   if (ids.length === 0) {
     // nothing to run; immediately mark as completed
     store.markCompleted(true);
@@ -70,9 +59,7 @@ export function ignite(
     const node = nodes.find((n) => n.id === id);
     if (!node) continue;
     const data = (node.data || {}) as Partial<EntryData>;
-    const pairs = (data.inputs || [])
-      .map((it) => [it.key, it.value] as const)
-      .filter(([k]) => !!k);
+    const pairs = (data.inputs || []).map((it) => [it.key, it.value] as const).filter(([k]) => !!k);
     const input: Record<string, unknown> = Object.fromEntries(pairs);
     store.setInputBuf(id, input);
     store.setLatestInput(id, input);
@@ -86,7 +73,7 @@ function scheduleRunNode(
   nodes: Node<NodeData>[],
   edges: Edge[],
   nodeId: string,
-  parentTraceId?: string
+  parentTraceId?: string,
 ) {
   if (scheduled.has(nodeId)) return;
   scheduled.add(nodeId);
@@ -100,32 +87,27 @@ async function runNode(
   nodes: Node<NodeData>[],
   edges: Edge[],
   nodeId: string,
-  parentTraceId?: string
+  parentTraceId?: string,
 ) {
   const store = useEngineStore.getState();
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return;
   const traceId = store.traceStart(nodeId, parentTraceId);
-  const input = structuredClone(
-    store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>)
-  );
+  const input = structuredClone(store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>));
   let output: unknown;
   try {
     // mark node as actively running for UI highlighting
     useEngineStore.getState().addActive(traceId, nodeId);
     if (node.type === "entry") output = (await evalEntry(node, input)).output;
     else if (node.type === "llm") output = (await evalLLM(node, input)).output;
-    else if (node.type === "switch")
-      output = (await evalSwitch(node, input)).output;
+    else if (node.type === "switch") output = (await evalSwitch(node, input)).output;
     else if (node.type === "end") output = (await evalEnd(node, input)).output;
     else output = input;
     useEngineStore.getState().setLatestOutput(nodeId, output);
-    useEngineStore
-      .getState()
-      .traceFinish(traceId, { output, endedAt: Date.now() });
-  } catch (e: any) {
+    useEngineStore.getState().traceFinish(traceId, { output, endedAt: Date.now() });
+  } catch (e: unknown) {
     useEngineStore.getState().traceFinish(traceId, {
-      error: String(e?.message || e),
+      error: String((e as { message?: unknown })?.message || e),
       endedAt: Date.now(),
     });
     // count run-level errors
@@ -143,7 +125,7 @@ async function propagate(
   edges: Edge[],
   source: Node<NodeData>,
   parentTraceId: string,
-  sourceOutput: unknown
+  sourceOutput: unknown,
 ) {
   const outgoing = getOutgoing(edges, source.id);
   const store = useEngineStore.getState();
@@ -160,32 +142,28 @@ async function propagate(
       const srcIdx = Number(e.sourceHandle?.replace("out-", ""));
       const sInputs = (source.data as Partial<EntryData>).inputs || [];
       const srcKey = sInputs[srcIdx]?.key;
-      const srcLatest = store.latestInputByNode[source.id] || {};
-      const val = srcKey ? (srcLatest as any)[srcKey] : undefined;
+      const srcLatest = (store.latestInputByNode[source.id] || {}) as Record<string, unknown>;
+      const val = srcKey ? srcLatest[srcKey] : undefined;
       // Map to target key when target is LLM using target handle index
       if (target.type === "llm") {
         const inIdx = Number(e.targetHandle?.replace("in-", ""));
-        const tKeyRaw = ((target.data as Partial<LLMData>).inputs || [])[inIdx]
-          ?.key;
-        const tKey = tKeyRaw && tKeyRaw.length ? tKeyRaw : `in${inIdx}`;
+        const tKeyRaw = ((target.data as Partial<LLMData>).inputs || [])[inIdx]?.key;
+        const tKey = tKeyRaw?.length ? tKeyRaw : `in${inIdx}`;
         nextInput = { ...nextInput, [tKey]: val };
       } else if (target.type === "switch") {
         // Route to gate/signal via dedicated target handles later in the generic block
-        (nextInput as any).value = val;
+        nextInput = { ...nextInput, value: val };
       } else {
         nextInput = { ...nextInput, value: val };
       }
     } else if (source.type === "llm") {
       const idx = Number(e.sourceHandle?.replace("out-", ""));
-      const pointer = ((source.data as Partial<LLMData>).outputPointers || [])[
-        idx
-      ];
+      const pointer = ((source.data as Partial<LLMData>).outputPointers || [])[idx];
       const val = pickLLMOutValue(sourceOutput, pointer);
       // Map to the target input key when target is LLM
       if (target.type === "llm") {
         const inIdx = Number(e.targetHandle?.replace("in-", ""));
-        const key = ((target.data as Partial<LLMData>).inputs || [])[inIdx]
-          ?.key;
+        const key = ((target.data as Partial<LLMData>).inputs || [])[inIdx]?.key;
         if (key) nextInput = { ...nextInput, [key]: val };
       } else {
         // Non-LLM target: merge raw value
@@ -194,21 +172,21 @@ async function propagate(
     } else if (source.type === "switch") {
       const pass = Boolean(
         sourceOutput && typeof sourceOutput === "object"
-          ? (sourceOutput as any).pass
-          : false
+          ? (sourceOutput as Record<string, unknown>).pass
+          : false,
       );
       const outHandle = e.sourceHandle || "";
       if (outHandle === "out-true" && !pass) continue;
       if (outHandle === "out-false" && pass) continue;
       const payload =
         sourceOutput && typeof sourceOutput === "object"
-          ? (sourceOutput as any).payload
+          ? (sourceOutput as Record<string, unknown>).payload
           : undefined;
       // Map to LLM target input key when connected to an LLM
       if (target.type === "llm") {
         const inIdx = Number((e.targetHandle || "").replace("in-", ""));
         const tKeyRaw = ((target.data as Partial<LLMData>).inputs || [])[inIdx]?.key;
-        const tKey = tKeyRaw && tKeyRaw.length ? tKeyRaw : `in${isFinite(inIdx) ? inIdx : 0}`;
+        const tKey = tKeyRaw?.length ? tKeyRaw : `in${Number.isFinite(inIdx) ? inIdx : 0}`;
         nextInput = { ...nextInput, [tKey]: payload };
       } else {
         nextInput = { ...nextInput, value: payload };
@@ -221,14 +199,14 @@ async function propagate(
     // Map by target handle for Switch inputs
     if (target.type === "switch") {
       const tgtHandle = e.targetHandle || "";
-      const latestSrc = store.latestInputByNode[source.id] || {};
-      const fromVal = (nextInput as any).value ?? (latestSrc as any).value;
+      const latestSrc = (store.latestInputByNode[source.id] || {}) as Record<string, unknown>;
+      const fromVal = (nextInput as Record<string, unknown>).value ?? latestSrc.value;
       if (tgtHandle === "in-gate") {
         nextInput = { ...nextInput, gate: fromVal };
       } else if (tgtHandle === "in-signal") {
         nextInput = { ...nextInput, signal: fromVal };
       }
-      if ("value" in nextInput) delete (nextInput as any).value;
+      if ("value" in nextInput) (nextInput as Record<string, unknown>).value = undefined;
     }
     store.setInputBuf(target.id, nextInput);
     store.setLatestInput(target.id, nextInput);

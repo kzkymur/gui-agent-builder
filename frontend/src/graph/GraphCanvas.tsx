@@ -7,7 +7,15 @@ import ReactFlow, {
   addEdge,
   applyNodeChanges,
 } from "reactflow";
-import type { Connection, Edge, Node, NodeTypes, OnConnect, OnEdgesChange, OnNodesChange } from "reactflow";
+import type {
+  Connection,
+  Edge,
+  Node,
+  NodeTypes,
+  OnConnect,
+  OnEdgesChange,
+  OnNodesChange,
+} from "reactflow";
 import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
@@ -32,7 +40,7 @@ export default function GraphCanvas() {
       mcp: MCPNode,
       end: EndNode,
     }),
-    []
+    [],
   );
 
   const onChangeNodes: OnNodesChange = useCallback(
@@ -40,7 +48,7 @@ export default function GraphCanvas() {
       const next = applyNodeChanges(changes, nodes as Node<NodeData>[]);
       setNodes(next);
     },
-    [nodes, setNodes]
+    [nodes, setNodes],
   );
 
   const onChangeEdges: OnEdgesChange = useCallback(
@@ -51,7 +59,7 @@ export default function GraphCanvas() {
       }, edges as Edge[]);
       setEdges(next);
     },
-    [edges, setEdges]
+    [edges, setEdges],
   );
 
   const onConnect: OnConnect = useCallback(
@@ -66,14 +74,14 @@ export default function GraphCanvas() {
       const next = addEdge(connection, edges as Edge[]);
       setEdges(next as Edge[]);
     },
-    [nodes, edges, setEdges]
+    [nodes, edges, setEdges],
   );
 
   const onSelection = useCallback(
     (elements: { nodes: Node<NodeData>[] }) => {
       setSelected(elements.nodes[0]?.id ?? null);
     },
-    [setSelected]
+    [setSelected],
   );
 
   return (

@@ -1,8 +1,8 @@
+import { Button, IconButton, Text, TextArea, TextField } from "@radix-ui/themes";
 import React from "react";
-import { Button, Text, TextArea, TextField, IconButton } from "@radix-ui/themes";
 import type { Node } from "reactflow";
-import type { NodeData } from "../../types";
 import { useEngineStore } from "../../engine/store";
+import type { NodeData } from "../../types";
 
 export default function EntryPanel({
   draft,
@@ -12,19 +12,24 @@ export default function EntryPanel({
   onPatch: (patch: Partial<NodeData>) => void;
 }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
-  const inputs = (draft as any).inputs ?? [];
+  const inputs: { key: string; value?: string }[] =
+    (draft.inputs as { key: string; value?: string }[] | undefined) ?? [];
   const setAt = (i: number, patch: Partial<{ key: string; value?: string }>) => {
-    const next = inputs.map((item: any, idx: number) => (idx === i ? { ...item, ...patch } : item));
-    onPatch({ inputs: next } as any);
+    const next = inputs.map((item, idx) => (idx === i ? { ...item, ...patch } : item));
+    onPatch({ inputs: next } as unknown as Partial<NodeData>);
   };
-  const removeAt = (i: number) => onPatch({ inputs: inputs.filter((_: any, idx: number) => idx !== i) } as any);
-  const add = () => onPatch({ inputs: [...inputs, { key: "", value: "" }] } as any);
+  const removeAt = (i: number) =>
+    onPatch({ inputs: inputs.filter((_, idx) => idx !== i) } as unknown as Partial<NodeData>);
+  const add = () =>
+    onPatch({ inputs: [...inputs, { key: "", value: "" }] } as unknown as Partial<NodeData>);
   return (
     <div className="field">
-      <Text as="span" weight="medium">Inputs</Text>
+      <Text as="span" weight="medium">
+        Inputs
+      </Text>
       <div style={{ display: "grid", gap: 8 }}>
-        {inputs.map((it: any, i: number) => (
-          <div key={i} style={{ display: "grid", gap: 6 }}>
+        {inputs.map((it: { key: string; value?: string }, i: number) => (
+          <div key={`${it.key || "k"}-${i}`} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <TextField.Root
                 style={{ width: "40%" }}
@@ -40,18 +45,29 @@ export default function EntryPanel({
                 onChange={(e) => setAt(i, { value: e.target.value })}
                 disabled={isBusy}
               />
-              <IconButton type="button" color="red" variant="soft" size="1" onClick={() => removeAt(i)} disabled={isBusy} aria-label={`Remove input ${i + 1}`}>
+              <IconButton
+                type="button"
+                color="red"
+                variant="soft"
+                size="1"
+                onClick={() => removeAt(i)}
+                disabled={isBusy}
+                aria-label={`Remove input ${i + 1}`}
+              >
                 −
               </IconButton>
             </div>
           </div>
         ))}
         <div>
-          <Button type="button" onClick={add} disabled={isBusy}>Add Input</Button>
+          <Button type="button" onClick={add} disabled={isBusy}>
+            Add Input
+          </Button>
         </div>
       </div>
-      <div className="help">Each input row defines a <b>key</b> and a <b>value</b> passed to downstream nodes.</div>
+      <div className="help">
+        Each input row defines a <b>key</b> and a <b>value</b> passed to downstream nodes.
+      </div>
     </div>
   );
 }
-
