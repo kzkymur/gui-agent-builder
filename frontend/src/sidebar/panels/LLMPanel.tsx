@@ -100,7 +100,10 @@ export default function LLMPanel({
     (async () => {
       try {
         const res = await getBackendClient().GET("/providers");
-        const ids = (res.data?.providers ?? []).map((p: any) => String(p.id));
+        const providers = (res && typeof res === "object" && res.data && typeof res.data === "object" && Array.isArray((res.data as { providers?: unknown }).providers))
+          ? (res.data as { providers: Array<{ id: unknown }> }).providers
+          : [];
+        const ids = providers.map((p) => String(p.id));
         setProviderOptions(ids);
       } catch {
         setProviderOptions([]);
@@ -170,7 +173,7 @@ export default function LLMPanel({
               value={typeof (draft as LLMData).maxTokens === "number" ? String((draft as LLMData).maxTokens) : ""}
               onChange={(e) => {
                 const v = (e.target as HTMLInputElement).value;
-                onPatch({ maxTokens: v === "" ? undefined : Number(v) });
+                onPatch({ maxTokens: v === "" ? null : Number(v) });
               }}
               disabled={isBusy}
             />
@@ -203,20 +206,23 @@ export default function LLMPanel({
               Temperature
             </Text>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input
+              {(() => {
+                const t = typeof (draft as LLMData).temperature === "number"
+                  ? (draft as LLMData).temperature as number
+                  : 0.7;
+                return (
+                  <input
                 type="range"
                 min={0}
                 max={1}
                 step={0.01}
-                value={
-                  typeof (draft as LLMData).temperature === "number"
-                    ? (draft as LLMData).temperature
-                    : 0.7
-                }
+                value={t}
                 onChange={(e) => onPatch({ temperature: Number(e.target.value) })}
                 disabled={isBusy}
                 style={{ flex: 1 }}
               />
+                );
+              })()}
               <code style={{ minWidth: 42, textAlign: "right" }}>
                 {typeof (draft as LLMData).temperature === "number"
                   ? (draft as LLMData).temperature!.toFixed(2)
@@ -226,7 +232,7 @@ export default function LLMPanel({
                 type="button"
                 size="1"
                 variant="soft"
-                onClick={() => onPatch({ temperature: undefined })}
+                onClick={() => onPatch({ temperature: null })}
                 disabled={isBusy}
                 title="Reset to model default"
               >

@@ -75,7 +75,12 @@ export function createClient(
     for (const [path, methods] of Object.entries(spec.paths || {})) {
       for (const method of Object.keys(methods) as HttpMethod[]) {
         const op = (methods as any)[method] as OpenAPIOperation;
-        out.push({ operationId: op?.operationId, method, path });
+        const item: { method: HttpMethod; path: string; operationId?: string } = {
+          method,
+          path,
+        };
+        if (op?.operationId) item.operationId = op.operationId;
+        out.push(item);
       }
     }
     return out;
@@ -139,7 +144,7 @@ export function createClient(
     applySecurityHeaders(method, path, headers, url);
     const body =
       opts.body === undefined || opts.body === null
-        ? undefined
+        ? null
         : typeof opts.body === "string" || opts.body instanceof Blob
           ? opts.body
           : JSON.stringify(opts.body);
@@ -157,7 +162,7 @@ export function createClient(
       method: method.toUpperCase(),
       headers,
       body,
-      signal: opts.signal,
+      signal: opts.signal ?? null,
     });
   }
 

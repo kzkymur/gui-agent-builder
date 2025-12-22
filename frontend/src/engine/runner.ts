@@ -109,7 +109,6 @@ async function runNode(
   const input = structuredClone(
     store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>)
   );
-  useEngineStore.getState().traceFinish(traceId, { input });
   let output: unknown;
   try {
     // mark node as actively running for UI highlighting

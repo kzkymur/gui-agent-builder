@@ -7,7 +7,7 @@ import ReactFlow, {
   addEdge,
   applyNodeChanges,
 } from "reactflow";
-import type { Connection, NodeTypes, OnConnect, OnEdgesChange, OnNodesChange } from "reactflow";
+import type { Connection, Edge, Node, NodeTypes, OnConnect, OnEdgesChange, OnNodesChange } from "reactflow";
 import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
@@ -37,7 +37,7 @@ export default function GraphCanvas() {
 
   const onChangeNodes: OnNodesChange = useCallback(
     (changes) => {
-      const next = applyNodeChanges(changes, nodes as any) as any;
+      const next = applyNodeChanges(changes, nodes as Node<NodeData>[]);
       setNodes(next);
     },
     [nodes, setNodes]
@@ -45,11 +45,11 @@ export default function GraphCanvas() {
 
   const onChangeEdges: OnEdgesChange = useCallback(
     (changes) => {
-      const next = changes.reduce<any[]>((acc, change) => {
+      const next = changes.reduce<Edge[]>((acc, change) => {
         if (change.type === "remove") return acc.filter((e) => e.id !== change.id);
         return acc;
-      }, edges as any);
-      setEdges(next as any);
+      }, edges as Edge[]);
+      setEdges(next);
     },
     [edges, setEdges]
   );
@@ -63,15 +63,18 @@ export default function GraphCanvas() {
       // Entry: no inputs; End: no outputs; MCP: no inputs/outputs
       if (src.type === "end" || src.type === "mcp") return;
       if (tgt.type === "mcp" || tgt.type === "entry") return;
-      const next = addEdge(connection, edges as any);
-      setEdges(next as any);
+      const next = addEdge(connection, edges as Edge[]);
+      setEdges(next as Edge[]);
     },
     [nodes, edges, setEdges]
   );
 
-  const onSelection = useCallback((elements: { nodes: any[] }) => {
-    setSelected(elements.nodes[0]?.id ?? null);
-  }, [setSelected]);
+  const onSelection = useCallback(
+    (elements: { nodes: Node<NodeData>[] }) => {
+      setSelected(elements.nodes[0]?.id ?? null);
+    },
+    [setSelected]
+  );
 
   return (
     <div style={{ width: "100%", height: "100%" }}>

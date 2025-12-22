@@ -1,10 +1,19 @@
-import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
+import initSqlJs from "sql.js";
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 
 const LS_KEY = "llmflow_db_v1";
 
-let SQL: SqlJsStatic | null = null;
-let DB: Database | null = null;
+type SqlStatement = { run(params: unknown[]): void; free(): void };
+type SqlExecRowset = { values: unknown[][] };
+type SqlDatabase = {
+  exec(sql: string): SqlExecRowset[];
+  prepare(sql: string): SqlStatement;
+  export(): Uint8Array;
+};
+type SqlJsModule = { Database: new (data?: Uint8Array) => SqlDatabase };
+
+let SQL: SqlJsModule | null = null;
+let DB: SqlDatabase | null = null;
 
 function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -19,9 +28,9 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(s);
 }
 
-export async function initDB(): Promise<Database> {
+export async function initDB(): Promise<SqlDatabase> {
   if (DB) return DB;
-  SQL = await initSqlJs({ locateFile: () => wasmUrl });
+  SQL = (await initSqlJs({ locateFile: () => wasmUrl })) as unknown as SqlJsModule;
   const saved = localStorage.getItem(LS_KEY);
   DB = saved ? new SQL.Database(base64ToBytes(saved)) : new SQL.Database();
   ensureSchema(DB);
@@ -34,7 +43,7 @@ export function exportAndPersist(): void {
   localStorage.setItem(LS_KEY, bytesToBase64(data));
 }
 
-function ensureSchema(db: Database) {
+function ensureSchema(db: SqlDatabase) {
   const [[userVersion]] = db.exec("PRAGMA user_version")?.[0]?.values ?? [[0]];
   const v = Number(userVersion ?? 0);
   if (v < 1) {

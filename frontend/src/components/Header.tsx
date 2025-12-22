@@ -22,7 +22,10 @@ export default function Header({
     (async () => {
       try {
         const res = await getBackendClient().GET("/providers");
-        const ids = (res.data?.providers ?? []).map((p: any) => String(p.id));
+        const providers = (res && typeof res === "object" && res.data && typeof res.data === "object" && Array.isArray((res.data as { providers?: unknown }).providers))
+          ? (res.data as { providers: Array<{ id: unknown }> }).providers
+          : [];
+        const ids = providers.map((p) => String(p.id));
         setProviderIds(ids);
       } catch {
         setProviderIds([]);

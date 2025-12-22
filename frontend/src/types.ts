@@ -18,8 +18,8 @@ export type LLMData = {
   model: string;
   system?: string;
   // LLM generation controls (optional)
-  temperature?: number;
-  maxTokens?: number;
+  temperature?: number | null;
+  maxTokens?: number | null;
   // IDs of MCP nodes this LLM can call
   mcpServers?: string[];
   // JSON Schema object describing the expected response shape

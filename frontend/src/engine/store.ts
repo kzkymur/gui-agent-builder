@@ -94,7 +94,9 @@ export const useEngineStore = create<EngineState>((set) => ({
     const id = `${nodeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     set((s) => {
       const nodes = { ...s.trace.nodes };
-      nodes[id] = { id, nodeId, parentId, startedAt: Date.now(), children: [] };
+      const base: TraceNode = { id, nodeId, startedAt: Date.now(), children: [] };
+      if (parentId) (base as any).parentId = parentId;
+      nodes[id] = base;
       const roots = parentId ? s.trace.roots.slice() : [...s.trace.roots, id];
       if (parentId && nodes[parentId])
         nodes[parentId] = { ...nodes[parentId], children: [...nodes[parentId].children, id] };

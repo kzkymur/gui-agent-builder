@@ -50,8 +50,8 @@ export function useGraph() {
             id: e.id,
             source: e.source,
             target: e.target,
-            sourceHandle: (e as Record<string, unknown>)["sourceHandle"] as string | undefined,
-            targetHandle: (e as Record<string, unknown>)["targetHandle"] as string | undefined,
+            sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
+            targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null,
           })),
         );
       }
@@ -76,8 +76,8 @@ export function useGraph() {
           id: e.id,
           source: e.source,
           target: e.target!,
-          sourceHandle: (e as any).sourceHandle ?? null,
-          targetHandle: (e as any).targetHandle ?? null,
+          sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null,
+          targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null,
         })),
       );
     }, 300);

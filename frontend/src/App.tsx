@@ -1,24 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "./components/Header";
-import { useEngineStore } from "./engine/store";
 import "reactflow/dist/style.css";
 import "./index.css";
 import type { Edge, Node } from "reactflow";
 import { useSettingsStore } from "./engine/settings";
-import { logGraphSnapshot } from "./engine/graph";
-import { ignite } from "./engine/runner";
 import GraphCanvas from "./graph/GraphCanvas";
 import { useGraph } from "./graph/useGraph";
 import NodeEditor from "./sidebar/NodeEditor";
-import type { LLMData, MCPData, NodeData } from "./types";
+import type { NodeData } from "./types";
 import FooterStatus from "./components/FooterStatus";
 import { makeDefaultNode, type NewNodeType } from "./graph/factory";
 import { useGraphUI } from "./graph/uiStore";
-import {
-  loadGraph,
-  loadSettings as dbLoadSettings,
-  saveSetting,
-} from "./db/sqlite";
+import { ignite } from "./engine/runtime";
+// no direct DB access here; children/hooks handle it
 
 // Simple hook for Delete key handling
 function useDeleteSelected(
@@ -48,8 +42,6 @@ export default function App() {
   const { dbReady, nodes, setNodes, edges, setEdges } = useGraph();
   // Selection moved to graph/uiStore
   const [newNodeType, setNewNodeType] = useState<NewNodeType>("llm");
-  const apiKeys = useSettingsStore((s) => s.apiKeys);
-  const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
   const loadSettings = useSettingsStore((s) => s.loadFromDB);
   const sidebarWidth = useSettingsStore((s) => s.sidebarWidth);
   const sidebarVisible = useSettingsStore((s) => s.sidebarVisible);
@@ -79,9 +71,6 @@ export default function App() {
   }, [dbReady, loadSettings]);
 
   // FooterStatus reads runtime data from engine store directly
-
-  // Direct ignite: simple and explicit, no globals
-  const runFlow = () => ignite(nodes, edges);
 
   // Maintain compatibility with Entry node's local Ignite button
   useEffect(() => {
@@ -120,12 +109,11 @@ export default function App() {
 
   // Keep App in sync when graph UI store changes (user drags nodes, edits in sidebar)
   useEffect(() => {
-    const unsubN = useGraphUI.subscribe((s) => s.nodes, (next) => setNodes(next as any));
-    const unsubE = useGraphUI.subscribe((s) => s.edges, (next) => setEdges(next as any));
-    return () => {
-      unsubN();
-      unsubE();
-    };
+    const unsub = useGraphUI.subscribe((state, prev) => {
+      if (state.nodes !== prev.nodes) setNodes(state.nodes as any);
+      if (state.edges !== prev.edges) setEdges(state.edges as any);
+    });
+    return () => { unsub(); };
   }, [setNodes, setEdges]);
 
   // header manages provider list for API keys dropdown

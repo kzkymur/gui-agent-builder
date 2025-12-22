@@ -6,12 +6,19 @@ import { useGraphUI } from "../graph/uiStore";
 
 export type BookmarkMeta = { name: string; savedAt: number };
 
-function readAll(): any[] {
+type BookmarkRow = {
+  name: unknown;
+  savedAt?: unknown;
+  nodes?: unknown;
+  edges?: unknown;
+};
+
+function readAll(): BookmarkRow[] {
   try {
     const all = dbLoadSettings();
     const raw = all["bookmarks"] ?? "[]";
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? (parsed as unknown as BookmarkRow[]) : [];
   } catch {
     return [];
   }
@@ -22,7 +29,9 @@ export function useBookmarks() {
 
   const refresh = useCallback(() => {
     const arr = readAll();
-    setBookmarks(arr.map((b: any) => ({ name: String(b.name), savedAt: Number(b.savedAt || 0) })));
+    setBookmarks(
+      arr.map((b) => ({ name: String(b.name), savedAt: Number(b.savedAt ?? 0) }))
+    );
   }, []);
 
   useEffect(() => {
@@ -32,27 +41,29 @@ export function useBookmarks() {
   const save = useCallback((name: string, nodes: Node<NodeData>[], edges: Edge[]) => {
     const arr = readAll();
     const snapNodes = nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, data: n.data }));
-    const snapEdges = edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: (e as any).sourceHandle ?? null, targetHandle: (e as any).targetHandle ?? null }));
-    const idx = arr.findIndex((b) => b && b.name === name);
+    const snapEdges = edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: (e as { sourceHandle?: string | null }).sourceHandle ?? null, targetHandle: (e as { targetHandle?: string | null }).targetHandle ?? null }));
+    const idx = arr.findIndex((b) => Boolean(b) && b.name === name);
     const entry = { name, nodes: snapNodes, edges: snapEdges, savedAt: Date.now() };
     if (idx >= 0) arr[idx] = entry; else arr.push(entry);
     try { saveSetting("bookmarks", JSON.stringify(arr)); } catch {}
-    setBookmarks(arr.map((b: any) => ({ name: b.name, savedAt: b.savedAt })));
+    setBookmarks(arr.map((b) => ({ name: String(b.name), savedAt: Number((b as { savedAt?: unknown }).savedAt ?? 0) })));
   }, []);
 
   const load = useCallback((name: string): { nodes: Node<NodeData>[]; edges: Edge[] } | null => {
     const arr = readAll();
-    const found = arr.find((b: any) => b && b.name === name);
+    const found = arr.find((b) => Boolean(b) && b.name === name);
     if (!found) return null;
-    const nodes = (found.nodes || []).map((x: any) => ({ id: String(x.id), type: String(x.type), position: { x: Number(x.x) || 0, y: Number(x.y) || 0 }, data: x.data || {} }));
-    const edges = (found.edges || []).map((x: any) => ({ id: String(x.id), source: String(x.source), target: String(x.target), sourceHandle: x.sourceHandle ?? null, targetHandle: x.targetHandle ?? null }));
-    return { nodes, edges } as any;
+    const rawNodes = (found.nodes as unknown) as Array<{ id: unknown; type: unknown; x: unknown; y: unknown; data?: unknown }> | undefined;
+    const rawEdges = (found.edges as unknown) as Array<{ id: unknown; source: unknown; target: unknown; sourceHandle?: unknown; targetHandle?: unknown }> | undefined;
+    const nodes: Node<NodeData>[] = (rawNodes ?? []).map((x) => ({ id: String(x.id), type: String(x.type), position: { x: Number(x.x) || 0, y: Number(x.y) || 0 }, data: (x.data as Record<string, unknown>) || {} }));
+    const edges: Edge[] = (rawEdges ?? []).map((x) => ({ id: String(x.id), source: String(x.source), target: String(x.target), sourceHandle: (x.sourceHandle as string | null | undefined) ?? null, targetHandle: (x.targetHandle as string | null | undefined) ?? null }));
+    return { nodes, edges };
   }, []);
 
   // Convenience helpers that operate against graph UI store directly
   const saveCurrent = useCallback((name: string) => {
     const s = useGraphUI.getState();
-    save(name, s.nodes as any, s.edges as any);
+    save(name, s.nodes, s.edges);
   }, [save]);
 
   const loadApply = useCallback((name: string) => {
@@ -60,8 +71,8 @@ export function useBookmarks() {
     if (!res) return false;
     try {
       const ui = useGraphUI.getState();
-      ui.setNodes(res.nodes as any);
-      ui.setEdges(res.edges as any);
+      ui.setNodes(res.nodes);
+      ui.setEdges(res.edges);
     } catch {}
     return true;
   }, [load]);

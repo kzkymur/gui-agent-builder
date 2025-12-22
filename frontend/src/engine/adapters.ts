@@ -44,7 +44,7 @@ export async function evalLLM(
     typeof data.temperature === "number"
       ? Math.max(0, Math.min(1, data.temperature))
       : undefined;
-  const body: Record<string, unknown> = {
+  const body: any = {
     provider: data.provider,
     model: data.model,
     messages,
@@ -67,17 +67,16 @@ export async function evalLLM(
       },
     });
     if (res.error) throw new Error("backend error");
-    const payload: any = res.data as any;
+    const payload: unknown = res.data as unknown;
     try {
-      const usage = payload?.usage || payload?.raw?.token_usage;
-      if (usage) useEngineStore.getState().addUsage(usage);
+      const usage =
+        payload && typeof payload === "object"
+          ? ((payload as { usage?: unknown }).usage ?? (payload as { raw?: { token_usage?: unknown } }).raw?.token_usage)
+          : undefined;
+      if (usage && typeof usage === "object") useEngineStore.getState().addUsage(usage);
     } catch {}
-    if (
-      payload &&
-      typeof payload === "object" &&
-      "output" in (payload as Record<string, unknown>)
-    ) {
-      return { output: (payload as Record<string, unknown>).output };
+    if (payload && typeof payload === "object" && "output" in (payload as Record<string, unknown>)) {
+      return { output: (payload as { output: unknown }).output };
     }
     return { output: payload };
   } catch (_e) {
