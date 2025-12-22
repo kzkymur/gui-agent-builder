@@ -114,7 +114,10 @@ export const useEngineStore = create<EngineState>((set) => ({
       } as Partial<EngineState>;
     }),
   setInputBuf: (nodeId, input) =>
-    set((s) => ({ inputBufByNode: { ...s.inputBufByNode, [nodeId]: input } })),
+    set((s) => {
+      const prev = s.inputBufByNode[nodeId] || {};
+      return { inputBufByNode: { ...s.inputBufByNode, [nodeId]: { ...prev, ...input } } } as Partial<EngineState>;
+    }),
   setLatestInput: (nodeId, input) =>
     set((s) => ({ latestInputByNode: { ...s.latestInputByNode, [nodeId]: input } })),
   setLatestOutput: (nodeId, output) =>

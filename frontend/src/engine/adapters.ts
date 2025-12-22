@@ -1,6 +1,6 @@
 import type { Node } from "reactflow";
 import type { LLMData, NodeData } from "../types";
-import { backendClient } from "./backendClient";
+import { getBackendClient } from "./backendClient";
 import { useEngineStore } from "./store";
 import { getApiKey } from "./settings";
 
@@ -8,21 +8,36 @@ export type EvalResult = { output: unknown };
 
 export async function evalEntry(
   _node: Node<NodeData>,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ): Promise<EvalResult> {
   return { output: input };
 }
 
 export async function evalLLM(
   node: Node<NodeData>,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ): Promise<EvalResult> {
+  console.log(input);;
   const data = (node.data || {}) as Partial<LLMData>;
   const messages: Array<{ role: "system" | "user"; content: string }> = [];
-  if (data.system) messages.push({ role: "system", content: String(data.system) });
-  // naive synthesis: key: value per line
+  if (data.system)
+    messages.push({ role: "system", content: String(data.system) });
+  // naive synthesis: key: value per line (JSON-stringify objects)
   const userContent = Object.entries(input || {})
-    .map(([k, v]) => `${k}: ${String(v)}`)
+    .map(([k, v]) => {
+      let sv: string;
+      if (v == null) sv = "";
+      else if (typeof v === "string") sv = v;
+      else if (typeof v === "number" || typeof v === "boolean") sv = String(v);
+      else {
+        try {
+          sv = JSON.stringify(v);
+        } catch {
+          sv = String(v);
+        }
+      }
+      return `${k}: ${sv}`;
+    })
     .join("\n");
   messages.push({ role: "user", content: userContent || "" });
 
@@ -39,18 +54,17 @@ export async function evalLLM(
     retries: 2,
     mcp: { servers: [] },
   };
-  console.log(data.responseSchema && typeof data.responseSchema === "object");
   if (data.responseSchema && typeof data.responseSchema === "object") {
-    (body as Record<string, unknown>).response_schema = data.responseSchema as Record<
-      string,
-      unknown
-    >;
+    (body as Record<string, unknown>).response_schema =
+      data.responseSchema as Record<string, unknown>;
   }
   try {
-    const res = await backendClient.POST("/llm/invoke", {
+    const res = await getBackendClient().POST("/llm/invoke", {
       body,
       headers: {
-        "x-provider-api-key": getApiKey(String(data.provider)) || (import.meta as any).env?.VITE_CLAUDE_API_KEY,
+        "x-provider-api-key":
+          getApiKey(String(data.provider)) ||
+          (import.meta as any).env?.VITE_CLAUDE_API_KEY,
       },
     });
     if (res.error) throw new Error("backend error");
@@ -75,14 +89,16 @@ export async function evalLLM(
 
 export async function evalSwitch(
   node: Node<NodeData>,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ): Promise<EvalResult> {
   const data = (node.data || {}) as any;
-  const thresh: number = typeof data.threshold === "number" ? data.threshold : 0.5;
+  const thresh: number =
+    typeof data.threshold === "number" ? data.threshold : 0.5;
   const gateRaw = (input || {})["gate"] as any;
   let gateNum: number;
   if (typeof gateRaw === "boolean") gateNum = gateRaw ? 1 : 0;
-  else if (typeof gateRaw === "number" && Number.isFinite(gateRaw)) gateNum = gateRaw;
+  else if (typeof gateRaw === "number" && Number.isFinite(gateRaw))
+    gateNum = gateRaw;
   else gateNum = NaN;
   const pass = Number.isFinite(gateNum) ? gateNum >= thresh : false;
   const payload = (input || {})["signal"];
@@ -91,7 +107,7 @@ export async function evalSwitch(
 
 export async function evalEnd(
   _node: Node<NodeData>,
-  input: Record<string, unknown>,
+  input: Record<string, unknown>
 ): Promise<EvalResult> {
   return { output: input };
 }

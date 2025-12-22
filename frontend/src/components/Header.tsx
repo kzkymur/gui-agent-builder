@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button, Popover, TextField, Select } from "@radix-ui/themes";
-import { backendClient } from "../engine/backendClient";
+import { getBackendClient, setBackendBaseUrl } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
 
 export default function Header({
@@ -28,7 +28,7 @@ export default function Header({
   useEffect(() => {
     (async () => {
       try {
-        const res = await backendClient.GET("/providers");
+        const res = await getBackendClient().GET("/providers");
         const ids = (res.data?.providers ?? []).map((p: any) => String(p.id));
         setProviderIds(ids);
       } catch {
@@ -103,6 +103,18 @@ export default function Header({
         </div>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <TextField.Root placeholder="Backend URL" id="be-url" style={{ width: 240 }} />
+          <Button
+            variant="soft"
+            onClick={() => {
+              const el = document.getElementById("be-url") as HTMLInputElement | null;
+              const url = (el?.value || "").trim();
+              if (!url) return;
+              setBackendBaseUrl(url);
+            }}
+          >
+            Set Backend
+          </Button>
           <Popover.Root open={keysOpen} onOpenChange={setKeysOpen}>
             <Popover.Trigger>
               <Button variant="soft">API Keys ▾</Button>

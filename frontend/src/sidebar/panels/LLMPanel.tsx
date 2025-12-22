@@ -3,7 +3,7 @@ import { Button, Checkbox, Select, Text, TextArea, TextField } from "@radix-ui/t
 import type { Node } from "reactflow";
 import type { LLMData, NodeData } from "../../types";
 import { useEngineStore } from "../../engine/store";
-import { backendClient } from "../../engine/backendClient";
+import { getBackendClient } from "../../engine/backendClient";
 import SchemaEditor from "../components/SchemaEditor";
 import LLMOutputPointersEditor from "../components/LLMOutputPointersEditor";
 
@@ -94,7 +94,7 @@ export default function LLMPanel({
   React.useEffect(() => {
     (async () => {
       try {
-        const res = await backendClient.GET("/providers");
+        const res = await getBackendClient().GET("/providers");
         const ids = (res.data?.providers ?? []).map((p: any) => String(p.id));
         setProviderOptions(ids);
       } catch {
