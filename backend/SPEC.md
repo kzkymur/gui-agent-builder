@@ -35,6 +35,13 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
   - Returns a predefined catalog of LLM providers with capability flags and runtime availability (based on installed LangChain packages).
   - 200 `{ "providers": [{ "id": "openai", "json_mode": true, "structured_output": true, "available": true }, { "id": "anthropic", ... }, { "id": "deepseek", ... } ] }`
 
+- `GET /model`
+  - Query: `provider` (string, required) — one of the known provider ids returned by `/providers`.
+  - Returns the model list for the given provider, sourced from a provider‑specific JSON file kept in `app/model_catalog/<provider>.json`.
+  - 200 `{ "provider": "openai", "models": [{ "id": "gpt-4o-mini", "name": "GPT‑4o mini", "description": "...", "type": "chat", "context_window": 128000 }, ...] }`
+  - 400 when `provider` is missing or unsupported.
+  - 404 when the catalog file for a supported provider is not found.
+
 - `POST /llm/invoke`
   - Description: Single LLM call; backend forwards to the chosen provider via LangChain.
   - Request JSON:

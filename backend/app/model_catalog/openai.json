@@ -1,0 +1,20 @@
+{
+  "provider": "openai",
+  "models": [
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o mini",
+      "type": "chat",
+      "context_window": 128000,
+      "description": "Fast, low-cost multimodal model for chat and JSON output"
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "type": "chat",
+      "context_window": 128000,
+      "description": "High‑quality multimodal model for complex tasks"
+    }
+  ]
+}
+

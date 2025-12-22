@@ -1,0 +1,20 @@
+{
+  "provider": "deepseek",
+  "models": [
+    {
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "type": "chat",
+      "context_window": 64000,
+      "description": "General chat model; JSON encouraged via system prompt"
+    },
+    {
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek Reasoner",
+      "type": "chat",
+      "context_window": 64000,
+      "description": "Optimized for reasoning; may be slower"
+    }
+  ]
+}
+

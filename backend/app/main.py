@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 from .providers import REGISTRY, list_providers, provider_capabilities
 from .utils.schema import validate_output_against_schema
 from .utils.errors import to_http
+from .providers.adapter import provider_catalog
+from pathlib import Path
+import json
 
 
 class ChatMessage(BaseModel):
@@ -95,6 +98,43 @@ async def root():
 @app.get("/providers")
 async def providers():
     return {"providers": list_providers()}
+
+
+@app.get("/model")
+async def get_models(provider: str):
+    # Validate provider against known catalog ids
+    catalog = provider_catalog()
+    if not provider or provider not in catalog:
+        raise HTTPException(status_code=400, detail={
+            "error": {
+                "code": "provider_invalid",
+                "message": f"Provider '{provider}' is missing or unsupported",
+                "details": None,
+            }
+        })
+
+    base = Path(__file__).parent / "model_catalog"
+    path = base / f"{provider}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail={
+            "error": {
+                "code": "catalog_not_found",
+                "message": f"Model catalog not found for provider '{provider}'",
+                "details": None,
+            }
+        })
+    try:
+        data = json.loads(path.read_text())
+        models = data.get("models", []) if isinstance(data, dict) else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "error": {
+                "code": "catalog_read_error",
+                "message": f"Failed to read catalog for '{provider}': {e}",
+                "details": None,
+            }
+        })
+    return {"provider": provider, "models": models}
 
 
 @app.post("/llm/invoke", response_model=InvokeResponse, responses={
