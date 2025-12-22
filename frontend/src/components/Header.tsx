@@ -3,7 +3,7 @@ import { Button, Popover, TextField, Select } from "@radix-ui/themes";
 import { getBackendClient, setBackendBaseUrl } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
 import { useEngineStore } from "../engine/store";
-import { loadSettings as dbLoadSettings } from "../db/sqlite";
+import { useBookmarks } from "../hooks/useBookmarks";
 
 export default function Header({
   onAddNode,
@@ -16,7 +16,7 @@ export default function Header({
   const [keysOpen, setKeysOpen] = useState(false);
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [newNodeType, setNewNodeType] = useState<string>("llm");
-  const [bookmarks, setBookmarks] = useState<{ name: string; savedAt: number }[]>([]);
+  const { bookmarks, refresh, saveCurrent, loadApply } = useBookmarks();
 
   useEffect(() => {
     (async () => {
@@ -31,15 +31,10 @@ export default function Header({
   }, []);
 
   useEffect(() => {
-    try {
-      const all = dbLoadSettings();
-      const raw = all["bookmarks"] ?? "[]";
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setBookmarks(parsed.map((b: any) => ({ name: String(b.name), savedAt: Number(b.savedAt || 0) })));
-      }
-    } catch {}
-  }, []);
+    const onChanged = () => refresh();
+    window.addEventListener("graph:bookmarks-changed", onChanged);
+    return () => window.removeEventListener("graph:bookmarks-changed", onChanged);
+  }, [refresh]);
 
   const [selectedBookmark, setSelectedBookmark] = useState<string>("")
 
@@ -80,7 +75,8 @@ export default function Header({
               const el = document.getElementById("bm-name") as HTMLInputElement | null;
               const name = (el?.value || "").trim();
               if (!name) return;
-              window.dispatchEvent(new CustomEvent("graph:saveBookmark", { detail: { name } }));
+              saveCurrent(name);
+              refresh();
               if (el) el.value = "";
             }}
             disabled={isBusy}
@@ -103,7 +99,7 @@ export default function Header({
             </Select.Content>
           </Select.Root>
           <Button
-            onClick={() => selectedBookmark && window.dispatchEvent(new CustomEvent("graph:loadBookmark", { detail: { name: selectedBookmark } }))}
+            onClick={() => selectedBookmark && loadApply(selectedBookmark)}
             disabled={isBusy || !selectedBookmark}
           >
             Load

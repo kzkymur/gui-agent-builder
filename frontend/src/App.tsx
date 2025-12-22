@@ -96,92 +96,16 @@ export default function App() {
       window.removeEventListener("engine:ignite", onIgnite as EventListener);
   }, [nodes, edges]);
 
-  const saveBookmark = (name: string) => {
-    try {
-      const all = dbLoadSettings();
-      const raw = all["bookmarks"] ?? "[]";
-      let arr: any[] = [];
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) arr = parsed;
-      } catch {}
-      const snapNodes = nodes.map((n) => ({
-        id: n.id,
-        type: n.type,
-        x: n.position.x,
-        y: n.position.y,
-        data: n.data,
-      }));
-      const snapEdges = edges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        sourceHandle: (e as any).sourceHandle ?? null,
-        targetHandle: (e as any).targetHandle ?? null,
-      }));
-      const idx = arr.findIndex((b) => b && b.name === name);
-      const entry = {
-        name,
-        nodes: snapNodes,
-        edges: snapEdges,
-        savedAt: Date.now(),
-      };
-      if (idx >= 0) arr[idx] = entry;
-      else arr.push(entry);
-      saveSetting("bookmarks", JSON.stringify(arr));
-    } catch {}
-  };
-
-  const loadBookmark = (name: string) => {
-    try {
-      const all = dbLoadSettings();
-      const parsed = JSON.parse(all["bookmarks"] ?? "[]");
-      if (!Array.isArray(parsed)) return;
-      const found = parsed.find((b: any) => b && b.name === name);
-      if (!found) return;
-      const n = (found.nodes || []).map((x: any) => ({
-        id: String(x.id),
-        type: String(x.type),
-        position: { x: Number(x.x) || 0, y: Number(x.y) || 0 },
-        data: x.data || {},
-      }));
-      const e = (found.edges || []).map((x: any) => ({
-        id: String(x.id),
-        source: String(x.source),
-        target: String(x.target),
-        sourceHandle: x.sourceHandle ?? null,
-        targetHandle: x.targetHandle ?? null,
-      }));
-      setNodes(n);
-      setEdges(e);
-      try {
-        const ui = useGraphUI.getState();
-        ui.setNodes(n as any);
-        ui.setEdges(e as any);
-      } catch {}
-    } catch {}
-  };
+  // Bookmarks are handled entirely inside the useBookmarks hook and Header.
 
   // Bridge events so child components don’t need props for global actions
   useEffect(() => {
-    const onSave = (e: Event) => {
-      const name = (e as CustomEvent).detail?.name as string | undefined;
-      if (name) saveBookmark(name);
-    };
-    const onLoad = (e: Event) => {
-      const name = (e as CustomEvent).detail?.name as string | undefined;
-      if (name) loadBookmark(name);
-    };
     const onSetType = (e: Event) => {
       const t = (e as CustomEvent).detail?.type as string | undefined;
       if (t) setNewNodeType(t as NewNodeType);
     };
-    window.addEventListener("graph:saveBookmark", onSave as EventListener);
-    window.addEventListener("graph:loadBookmark", onLoad as EventListener);
     window.addEventListener("graph:setNewNodeType", onSetType as EventListener);
     return () => {
-      window.removeEventListener("graph:saveBookmark", onSave as EventListener);
-      window.removeEventListener("graph:loadBookmark", onLoad as EventListener);
       window.removeEventListener("graph:setNewNodeType", onSetType as EventListener);
     };
   }, []);
@@ -276,33 +200,9 @@ export default function App() {
             }}
           >
             {sidebarVisible ? (
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <img src="/icons/chevron-left.svg" width={12} height={12} aria-hidden />
             ) : (
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
+              <img src="/icons/chevron-right.svg" width={12} height={12} aria-hidden />
             )}
           </button>
         </div>
