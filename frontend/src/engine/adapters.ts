@@ -41,6 +41,9 @@ export async function evalLLM(
 
   const t =
     typeof data.temperature === "number" ? Math.max(0, Math.min(1, data.temperature)) : undefined;
+  const servers = Array.isArray(data.mcpServers)
+    ? data.mcpServers.filter((s) => typeof s === "string" && s.length)
+    : [];
   const body = {
     provider: String(data.provider ?? ""),
     model: String(data.model ?? ""),
@@ -52,7 +55,9 @@ export async function evalLLM(
     temperature: typeof t === "number" ? t : null,
     max_tokens: typeof data.maxTokens === "number" ? data.maxTokens : null,
     retries: 2,
-    mcp: null as { [key: string]: unknown } | null,
+    mcp: (servers.length ? ({ servers } as unknown as { [key: string]: unknown }) : null) as {
+      [key: string]: unknown;
+    } | null,
   } satisfies import("./__generated__/backend").components["schemas"]["InvokeRequest"];
   // response_schema assigned via body initializer when provided
   try {

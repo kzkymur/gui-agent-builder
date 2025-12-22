@@ -1,11 +1,11 @@
 import type { Edge, Node } from "reactflow";
 import type { NodeData } from "../types";
 import { logGraphSnapshot } from "./graph";
+import { ignite as runEngine } from "./runner";
 
 // Minimal starter to prove wiring. Will evolve into the real executor.
 export function ignite(nodes: Node<NodeData>[], edges: Edge[], entryId?: string | null) {
-  // For now, just log a structured snapshot and the chosen entry.
-  // eslint-disable-next-line no-console
-  console.log("[LLM-Flow] Ignite", { entryId: entryId ?? null });
+  // Log a structured snapshot and delegate to the engine runner.
   logGraphSnapshot(nodes, edges);
+  runEngine(nodes, edges, entryId ?? undefined);
 }
