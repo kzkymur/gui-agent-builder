@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEngineStore } from "../engine/store";
+import { useGraphUI } from "../graph/uiStore";
 
 type Props = {
   title: string;
@@ -15,7 +16,14 @@ export default function NodeChrome({ title, children, handles, kind, style, node
   const isRunning = nodeId
     ? Array.from(activeRunning.values()).some((v) => v.nodeId === nodeId)
     : false;
-  const cls = ["node", kind ? `node--${kind}` : null, isRunning ? "node--running" : null]
+  const selectedId = useGraphUI((s) => s.selectedId);
+  const isSelected = nodeId ? selectedId === nodeId : false;
+  const cls = [
+    "node",
+    kind ? `node--${kind}` : null,
+    isSelected ? "node--selected" : null,
+    isRunning ? "node--running" : null,
+  ]
     .filter(Boolean)
     .join(" ");
   return (

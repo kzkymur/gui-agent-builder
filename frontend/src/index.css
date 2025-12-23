@@ -170,6 +170,11 @@ textarea.rt-TextAreaInput {
   outline: 2px solid #3b82f6;
   outline-offset: 1px;
 }
+/* Selected state: blue outline */
+.node--selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
 /* Running state: orange outline */
 .node--running {
   outline: 2px solid #f59e0b;

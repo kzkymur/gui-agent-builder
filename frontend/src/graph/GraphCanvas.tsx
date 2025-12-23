@@ -94,6 +94,12 @@ export default function GraphCanvas() {
         onEdgesChange={onChangeEdges}
         onConnect={onConnect}
         onSelectionChange={onSelection}
+        onNodeClick={(_, node) => setSelected((node as Node<NodeData>).id)}
+        onPaneClick={() => setSelected(null)}
+        panOnScroll
+        panOnDrag={false}
+        zoomOnScroll={false}
+        zoomOnPinch
         fitView
         selectionMode={SelectionMode.Partial}
       >

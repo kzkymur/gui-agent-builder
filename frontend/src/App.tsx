@@ -64,6 +64,33 @@ export default function App() {
   const selected = selectedId ? (nodes.find((n) => n.id === selectedId) ?? null) : null;
   useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
 
+  // Copy/Paste selected node (Cmd/Ctrl+C, Cmd/Ctrl+V)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = (target?.tagName || '').toLowerCase();
+      const isEditing =
+        tag === 'input' ||
+        tag === 'textarea' ||
+        (target?.isContentEditable ?? false) ||
+        (target as HTMLInputElement)?.type === 'text';
+      if (isEditing) return; // don't hijack clipboard in inputs
+      const isMod = e.metaKey || e.ctrlKey;
+      if (!isMod) return;
+      if (e.key.toLowerCase() === "c") {
+        useGraphUI.getState().copySelected();
+        e.preventDefault();
+        e.stopPropagation();
+      } else if (e.key.toLowerCase() === "v") {
+        useGraphUI.getState().pasteClipboard();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Load settings from DB when ready
   useEffect(() => {
     if (!dbReady) return;

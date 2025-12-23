@@ -44,6 +44,7 @@
 - Loads DB on start; if empty, shows an empty canvas (no demo graph).
 - Editing in sidebar updates node `data` (debounced) and triggers full‑graph `saveGraph`.
 - Selection passes first selected node to sidebar.
+ - Selection is controlled: store `selectedId` drives React Flow `node.selected`.
 - Each output port corresponds to a JSON Pointer (RFC 6901) in `outputPointers` (array). Adding/removing rows adds/removes output ports. No implicit defaults are added.
 - LLM inputs are defined as a list of handles with `key` and `description`.
 - Persistence fidelity: Response Schema is stored as raw string while typing and as parsed JSON object after blur (when valid). Either form is saved to `nodes.data.responseSchema` exactly as edited.
@@ -53,8 +54,10 @@
 
 - Nodes are visually differentiated by type-specific colors for clarity.
 - Running nodes show an orange outline to indicate activity.
+- The currently selected node shows a blue outline to indicate selection.
 - Provide a visible "Add Node" control to insert a new node into the graph.
 - Support removing the selected node via the Delete key (and update edges accordingly).
+- Support copying the selected node with Cmd/Ctrl+C and pasting with Cmd/Ctrl+V. Pasted node appears offset, receives a new id, and becomes the selected node.
 - LLM sidebar includes a checkbox list to choose MCP servers from existing MCP nodes (by node id/name).
 - Entry sidebar includes an editor for key/value rows.
 - Header includes API Key inputs on the right, one per provider returned by `GET /providers`. Keys persist to sqlite in a single record (`settings.api_keys` JSON). Adapters use the exact provider's key when present; `settings.api_key` remains a legacy fallback and `VITE_CLAUDE_API_KEY` is a final fallback.
@@ -62,6 +65,9 @@
 - Sidebar occupies full height and scrolls internally; graph and sidebar share the viewport vertically under a constant-height footer.
 - Footer is vertically resizable via a horizontal divider between the graph and footer. Height persists in settings (`settings.footer_height`). Double‑click the divider to reset to 200px.
 - Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
+ - Canvas gestures:
+   - Move (pan): scrolling.
+   - Zoom: trackpad/touchpad pinching (no zoom on wheel/scroll).
 - Sidebar sections for LLM nodes:
 - "LLM Settings": provider (dropdown from `GET /providers`), model (dropdown from `GET /model?provider=…`), temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).
