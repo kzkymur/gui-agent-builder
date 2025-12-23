@@ -1,6 +1,6 @@
 import { Button, Popover, Select, TextField } from "@radix-ui/themes";
 import React, { useEffect, useState } from "react";
-import { getBackendClient, setBackendBaseUrl } from "../engine/backendClient";
+import { getBackendClient } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
 import { useEngineStore } from "../engine/store";
 import { useBookmarks } from "../hooks/useBookmarks";
@@ -123,18 +123,6 @@ export default function Header({
         </div>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <TextField.Root placeholder="Backend URL" id="be-url" style={{ width: 240 }} />
-          <Button
-            variant="soft"
-            onClick={() => {
-              const el = document.getElementById("be-url") as HTMLInputElement | null;
-              const url = (el?.value || "").trim();
-              if (!url) return;
-              setBackendBaseUrl(url);
-            }}
-          >
-            Set Backend
-          </Button>
           <Popover.Root open={keysOpen} onOpenChange={setKeysOpen}>
             <Popover.Trigger>
               <Button variant="soft">API Keys ▾</Button>

@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from .logging import BufferingHandler
-from ..utils.schema import enforce_no_additional_properties
+from ..utils.schema import (
+    enforce_no_additional_properties,
+    enforce_no_additional_properties_deep,
+    enforce_required_all_properties_deep,
+)
 from .mcp import abuild_mcp_tools
 
 
@@ -290,9 +294,17 @@ def _create_chat_model(
         if not _is_openai_available():
             raise RuntimeError("langchain-openai not installed")
         if response_schema:
+            # OpenAI strict mode requires nested object schemas to explicitly set additionalProperties=false.
+            # We recursively enforce that only when the field is absent.
+            strict_schema = enforce_no_additional_properties_deep(response_schema)
+            strict_schema = enforce_required_all_properties_deep(strict_schema)
             params["response_format"] = {
                 "type": "json_schema",
-                "json_schema": enforce_no_additional_properties(response_schema),
+                "json_schema": {
+                    "name": "llm_flow_schema",
+                    "schema": strict_schema,
+                    "strict": True,
+                },
             }
         from langchain_openai import ChatOpenAI
 

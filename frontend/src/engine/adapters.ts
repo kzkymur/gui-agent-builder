@@ -1,4 +1,5 @@
 import type { Node } from "reactflow";
+import { useGraphUI } from "../graph/uiStore";
 import type { LLMData, NodeData } from "../types";
 import { getBackendClient } from "./backendClient";
 import { getApiKey } from "./settings";
@@ -44,6 +45,20 @@ export async function evalLLM(
   const servers = Array.isArray(data.mcpServers)
     ? data.mcpServers.filter((s) => typeof s === "string" && s.length)
     : [];
+  const mcpServerObjects = servers
+    .map((id) => {
+      try {
+        const n = useGraphUI.getState().nodes.find((x) => x.id === id && x.type === "mcp");
+        if (!n) return null;
+        const name = (n.data as Partial<NodeData>)?.name ?? id;
+        const url = (n.data as Partial<NodeData>)?.url ?? "";
+        if (!url) return null;
+        return { name: String(name), url: String(url) } as { name: string; url: string };
+      } catch {
+        return null;
+      }
+    })
+    .filter((x): x is { name: string; url: string } => Boolean(x));
   const body = {
     provider: String(data.provider ?? ""),
     model: String(data.model ?? ""),
@@ -55,10 +70,8 @@ export async function evalLLM(
     temperature: typeof t === "number" ? t : null,
     max_tokens: typeof data.maxTokens === "number" ? data.maxTokens : null,
     retries: 2,
-    mcp: (servers.length ? ({ servers } as unknown as { [key: string]: unknown }) : null) as {
-      [key: string]: unknown;
-    } | null,
-  } satisfies import("./__generated__/backend").components["schemas"]["InvokeRequest"];
+    mcp: { servers: mcpServerObjects },
+  } as unknown as import("./__generated__/backend").components["schemas"]["InvokeRequest"];
   // response_schema assigned via body initializer when provided
   try {
     const res = await getBackendClient().POST("/llm/invoke", {

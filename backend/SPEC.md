@@ -48,7 +48,15 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
     - `provider` (string, required) — e.g. `openai`, `anthropic`, `deepseek`.
     - `model` (string, required)
     - `messages` (array, required) — chat format `[ { "role": "system|user|assistant", "content": string } ]`.
-    - `response_schema` (object, optional) — JSON Schema object to request structured output when the provider supports it. The value MUST be the schema itself, not wrapped (e.g., no `{ name, schema }`). If the root schema has `type: "object"` and omits `additionalProperties`, the backend enforces `additionalProperties: false` — validation runs only when the provider advertises `structured_output: true`.
+    - `response_schema` (object, optional) — JSON Schema object to request structured output when the provider supports it. The value MUST be the schema itself, not wrapped. If the root schema has `type: "object"` and omits `additionalProperties`, the backend enforces `additionalProperties: false` — validation runs only when the provider advertises `structured_output: true`.
+      - Provider specifics (handled transparently by the backend adapter):
+        - OpenAI: wrapped to `{ type: "json_schema", json_schema: { name: "llm_flow_schema", schema: <your schema>, strict: true } }`.
+          - Backend normalization for OpenAI strict mode:
+            - Recursively add `additionalProperties: false` to any object schema that omits it.
+            - Recursively set `required` to include every key in `properties` for object schemas when missing/incomplete.
+            - Explicit values you set are preserved.
+        - Anthropic: bound as a synthetic tool with `input_schema = <your schema>` when no MCP tools are in use.
+        - DeepSeek: emulates JSON-only or schema-guided replies via prompt injection when requested.
     - `temperature` (number, optional)
     - `max_tokens` (number, optional)
     - `extra` (object, optional) — provider‑specific passthrough fields.
