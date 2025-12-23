@@ -30,6 +30,7 @@ export default function GraphCanvas() {
   const setNodes = useGraphUI((s) => s.setNodes);
   const setEdges = useGraphUI((s) => s.setEdges);
   const setSelected = useGraphUI((s) => s.setSelected);
+  const setSelection = useGraphUI((s) => s.setSelection);
   // Parent is the single source of truth; no local mirrors.
 
   const nodeTypes = useMemo<NodeTypes>(
@@ -78,10 +79,12 @@ export default function GraphCanvas() {
   );
 
   const onSelection = useCallback(
-    (elements: { nodes: Node<NodeData>[] }) => {
-      setSelected(elements.nodes[0]?.id ?? null);
+    (elements: { nodes: Node<NodeData>[]; edges: Edge[] }) => {
+      const nodeIds = elements.nodes.map((n) => n.id);
+      const edgeIds = elements.edges?.map((e) => e.id) ?? [];
+      setSelection(nodeIds, edgeIds);
     },
-    [setSelected],
+    [setSelection],
   );
 
   return (
@@ -98,6 +101,7 @@ export default function GraphCanvas() {
         onPaneClick={() => setSelected(null)}
         panOnScroll
         panOnDrag={false}
+        selectionOnDrag
         zoomOnScroll={false}
         zoomOnPinch
         fitView

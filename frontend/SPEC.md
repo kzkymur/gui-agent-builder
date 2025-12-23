@@ -65,9 +65,13 @@
 - Sidebar occupies full height and scrolls internally; graph and sidebar share the viewport vertically under a constant-height footer.
 - Footer is vertically resizable via a horizontal divider between the graph and footer. Height persists in settings (`settings.footer_height`). Double‑click the divider to reset to 200px.
 - Footer is always visible with a constant height and shows End-node outputs when present; otherwise it displays a hint.
- - Canvas gestures:
-   - Move (pan): scrolling.
-   - Zoom: trackpad/touchpad pinching (no zoom on wheel/scroll).
+- Canvas gestures:
+  - Move (pan): scrolling.
+  - Zoom: trackpad/touchpad pinching (no zoom on wheel/scroll).
+  - Select a range: dragging on empty canvas draws a marquee to select items.
+    - Selection mode: partial overlap selects a node or an edge.
+    - Copy/Paste: Cmd/Ctrl+C copies all selected nodes and all edges whose endpoints are both within the selection; Cmd/Ctrl+V pastes a duplicated subgraph offset by (30, 30) with new IDs.
+    - Pasted subgraph preserves node `data` verbatim and rewires internal edges to the new node IDs. External edges are not copied.
 - Sidebar sections for LLM nodes:
 - "LLM Settings": provider (dropdown from `GET /providers`), model (dropdown from `GET /model?provider=…`), temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).

@@ -16,7 +16,7 @@ import "reactflow/dist/style.css";
 
 // Simple hook for Delete key handling
 function useDeleteSelected(
-  selected: Node<NodeData> | null,
+  selectedIds: string[],
   nodes: Node<NodeData>[],
   edges: Edge[],
   setNodes: (n: Node<NodeData>[]) => void,
@@ -25,15 +25,16 @@ function useDeleteSelected(
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete") return;
-      if (!selected) return;
-      const nextNodes = nodes.filter((n) => n.id !== selected.id);
-      const nextEdges = edges.filter((e) => e.source !== selected.id && e.target !== selected.id);
+      if (!selectedIds.length) return;
+      const idSet = new Set(selectedIds);
+      const nextNodes = nodes.filter((n) => !idSet.has(n.id));
+      const nextEdges = edges.filter((e) => !idSet.has(e.source) && !idSet.has(e.target));
       setNodes(nextNodes);
       setEdges(nextEdges);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, nodes, edges, setNodes, setEdges]);
+  }, [selectedIds, nodes, edges, setNodes, setEdges]);
 }
 
 export default function App() {
@@ -60,9 +61,8 @@ export default function App() {
     } catch {}
   };
 
-  const selectedId = useGraphUI((s) => s.selectedId);
-  const selected = selectedId ? (nodes.find((n) => n.id === selectedId) ?? null) : null;
-  useDeleteSelected(selected, nodes, edges, setNodes, setEdges);
+  const selectedNodeIds = useGraphUI((s) => s.selectedNodeIds);
+  useDeleteSelected(selectedNodeIds, nodes, edges, setNodes, setEdges);
 
   // Copy/Paste selected node (Cmd/Ctrl+C, Cmd/Ctrl+V)
   useEffect(() => {
