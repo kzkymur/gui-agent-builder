@@ -26,12 +26,16 @@ function pickLLMOutValue(output: unknown, pointer: string | undefined): unknown 
 function isNodeReady(target: Node<NodeData>, buf: Record<string, unknown>): boolean {
   // Entry nodes don't receive inputs here; Switch requires both gate and signal; LLM requires all declared input keys
   if (target.type === "llm") {
-    const cfg = (target.data || {}) as Partial<{ inputs?: Array<{ key?: string }> }>;
+    const cfg = (target.data || {}) as Partial<{
+      inputs?: Array<{ key?: string; mode?: "normal" | "optional" | "holding" | "optional_holding" }>;
+    }>;
     const inputs = Array.isArray(cfg.inputs) ? cfg.inputs : [];
     if (inputs.length === 0) return true; // nothing to wait for
-    return inputs.every((it: { key?: string }, idx: number) => {
+    return inputs.every((it: { key?: string; mode?: string }, idx: number) => {
       const k = typeof it?.key === "string" && it.key.length ? it.key : `in${idx}`;
-      return k in buf;
+      const mode = String(it?.mode ?? "normal");
+      const isOptional = mode === "optional" || mode === "optional_holding";
+      return isOptional ? true : k in buf;
     });
   }
   if (target.type === "switch") {
@@ -116,6 +120,27 @@ async function runNode(
   } finally {
     // clear running state regardless of outcome
     useEngineStore.getState().removeActive(traceId);
+  }
+  // After a successful run, consume non-holding inputs for LLM nodes
+  if (node.type === "llm") {
+    try {
+      const cfg = (node.data || {}) as Partial<{
+        inputs?: Array<{ key?: string; mode?: "normal" | "optional" | "holding" | "optional_holding" }>;
+      }>;
+      const inputs = Array.isArray(cfg.inputs) ? cfg.inputs : [];
+      const toConsume: string[] = [];
+      inputs.forEach((it, idx) => {
+        const mode = String(it?.mode ?? "normal");
+        const holding = mode === "holding" || mode === "optional_holding";
+        if (!holding) {
+          const k = typeof it?.key === "string" && it.key.length ? it.key : `in${idx}`;
+          toConsume.push(k);
+        }
+      });
+      if (toConsume.length) useEngineStore.getState().clearInputKeys(nodeId, toConsume);
+    } catch {
+      // best-effort
+    }
   }
   await propagate(nodes, edges, node, traceId, output);
 }

@@ -10,6 +10,12 @@ export type EntryData = {
 export type LLMInput = {
   key: string;
   description: string;
+  // Input handle behavior:
+  // - normal: required; consumed after call
+  // - optional: not required; consumed after call if present
+  // - holding: required; retained after call
+  // - optional_holding: not required; retained after call if present
+  mode?: "normal" | "optional" | "holding" | "optional_holding";
 };
 
 export type LLMData = {

@@ -41,6 +41,7 @@ export type EngineState = {
   setInputBuf: (nodeId: string, input: Record<string, unknown>) => void;
   setLatestInput: (nodeId: string, input: Record<string, unknown>) => void;
   setLatestOutput: (nodeId: string, output: unknown) => void;
+  clearInputKeys: (nodeId: string, keys: string[]) => void;
   markCompleted: (ok: boolean) => void;
   incError: () => void;
   addUsage: (usage: unknown) => void;
@@ -126,6 +127,19 @@ export const useEngineStore = create<EngineState>((set) => ({
     set((s) => ({ latestInputByNode: { ...s.latestInputByNode, [nodeId]: input } })),
   setLatestOutput: (nodeId, output) =>
     set((s) => ({ latestOutputByNode: { ...s.latestOutputByNode, [nodeId]: output } })),
+  clearInputKeys: (nodeId, keys) =>
+    set((s) => {
+      const cur = { ...(s.inputBufByNode[nodeId] || {}) } as Record<string, unknown>;
+      let changed = false;
+      for (const k of keys) {
+        if (k in cur) {
+          delete cur[k];
+          changed = true;
+        }
+      }
+      if (!changed) return {} as Partial<EngineState>;
+      return { inputBufByNode: { ...s.inputBufByNode, [nodeId]: cur } } as Partial<EngineState>;
+    }),
   markCompleted: (ok) =>
     set((s) => ({ run: { ...s.run, status: ok ? "completed" : "failed", endedAt: Date.now() } })),
   incError: () => set((s) => ({ run: { ...s.run, errorCount: s.run.errorCount + 1 } })),

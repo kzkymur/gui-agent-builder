@@ -17,6 +17,12 @@ function normalizeNodeData(type: string | undefined, data: unknown): NodeData {
       d.inputs = (inputs as Array<Record<string, unknown>>).map((i) => ({
         key: String(i?.key ?? ""),
         description: String(i?.description ?? ""),
+        mode: ((): "normal" | "optional" | "holding" | "optional_holding" => {
+          const m = String(i?.mode ?? "normal");
+          return (m === "optional" || m === "holding" || m === "optional_holding")
+            ? (m as any)
+            : "normal";
+        })(),
       }));
     }
     if (d.outputPointers && !Array.isArray(d.outputPointers)) d.outputPointers = [];
