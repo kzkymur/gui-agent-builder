@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Edge, Node } from "reactflow";
-import { loadSettings as dbLoadSettings, saveSetting } from "../db/sqlite";
+import { initDB, loadSettings as dbLoadSettings, saveSetting } from "../db/sqlite";
 import { useGraphUI } from "../graph/uiStore";
 import type { NodeData } from "../types";
 
@@ -28,8 +28,13 @@ export function useBookmarks() {
   const [bookmarks, setBookmarks] = useState<BookmarkMeta[]>([]);
 
   const refresh = useCallback(() => {
-    const arr = readAll();
-    setBookmarks(arr.map((b) => ({ name: String(b.name), savedAt: Number(b.savedAt ?? 0) })));
+    // Ensure DB is initialized before reading settings on fresh page load
+    initDB()
+      .then(() => {
+        const arr = readAll();
+        setBookmarks(arr.map((b) => ({ name: String(b.name), savedAt: Number(b.savedAt ?? 0) })));
+      })
+      .catch(() => setBookmarks([]));
   }, []);
 
   useEffect(() => {

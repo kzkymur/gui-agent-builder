@@ -80,7 +80,12 @@ export async function evalLLM(
         "x-provider-api-key": getApiKey(String(data.provider)) || "",
       },
     });
-    if (res.error) throw new Error("backend error");
+    if (res.error) {
+      // Surface backend error to runner so it can stop propagation.
+      const err = (res.error as unknown) as { error?: { code?: string; message?: string } };
+      const msg = err?.error?.message || "backend error";
+      throw new Error(msg);
+    }
     const payload: unknown = res.data as unknown;
     try {
       const usage =
@@ -98,9 +103,12 @@ export async function evalLLM(
       return { output: (payload as { output: unknown }).output };
     }
     return { output: payload };
-  } catch (_e) {
-    // Fallback in dev without backend
-    return { output: { echo: input } as Record<string, unknown> };
+  } catch (e) {
+    // Network/unreachable backend: keep dev fallback. Re-throw other errors to stop propagation.
+    if (e instanceof TypeError) {
+      return { output: { echo: input } as Record<string, unknown> };
+    }
+    throw e;
   }
 }
 
