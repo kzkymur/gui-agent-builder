@@ -29,7 +29,8 @@ export function InputsEditor({
       </Text>
       <div style={{ display: "grid", gap: 8 }}>
         {list.map((it, i) => (
-          <div key={`${it.key || "k"}-${i}`} style={{ display: "grid", gap: 6 }}>
+          // Use a stable key independent of the input value to avoid remounting and blur
+          <div key={`in-${i}`} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <TextField.Root
                 style={{ width: "30%" }}

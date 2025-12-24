@@ -29,7 +29,8 @@ export default function EntryPanel({
       </Text>
       <div style={{ display: "grid", gap: 8 }}>
         {inputs.map((it: { key: string; value?: string }, i: number) => (
-          <div key={`${it.key || "k"}-${i}`} style={{ display: "grid", gap: 6 }}>
+          // Stable key to avoid remount and input blur while typing
+          <div key={`entry-in-${i}`} style={{ display: "grid", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
               <TextField.Root
                 style={{ width: "40%" }}
