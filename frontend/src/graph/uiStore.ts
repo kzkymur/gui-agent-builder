@@ -13,12 +13,14 @@ type GraphUIState = {
   selectedId: string | null;
   selectedNodeIds: string[];
   selectedEdgeIds: string[];
+  showHistory: boolean;
   clipboard: ClipboardPayload;
   init: (nodes: Node<NodeData>[], edges: Edge[]) => void;
   setNodes: (updater: Node<NodeData>[] | ((prev: Node<NodeData>[]) => Node<NodeData>[])) => void;
   setEdges: (updater: Edge[] | ((prev: Edge[]) => Edge[])) => void;
   setSelected: (id: string | null) => void;
   setSelection: (nodeIds: string[], edgeIds: string[]) => void;
+  toggleHistory: () => void;
   copySelected: () => void;
   pasteClipboard: () => void;
 };
@@ -29,6 +31,7 @@ export const useGraphUI = create<GraphUIState>((set) => ({
   selectedId: null,
   selectedNodeIds: [],
   selectedEdgeIds: [],
+  showHistory: false,
   clipboard: null,
   init: (nodes, edges) => set({ nodes, edges }),
   setNodes: (updater) =>
@@ -49,6 +52,7 @@ export const useGraphUI = create<GraphUIState>((set) => ({
     selectedNodeIds: nodeIds,
     selectedEdgeIds: edgeIds,
   }),
+  toggleHistory: () => set((s) => ({ showHistory: !s.showHistory })),
   copySelected: () =>
     set((s) => {
       const nodeIds = s.selectedNodeIds.length ? s.selectedNodeIds : (s.selectedId ? [s.selectedId] : []);

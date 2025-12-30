@@ -31,6 +31,7 @@ export default function GraphCanvas() {
   const setEdges = useGraphUI((s) => s.setEdges);
   const setSelected = useGraphUI((s) => s.setSelected);
   const setSelection = useGraphUI((s) => s.setSelection);
+  const toggleHistory = useGraphUI((s) => s.toggleHistory);
   // Parent is the single source of truth; no local mirrors.
 
   const nodeTypes = useMemo<NodeTypes>(
@@ -98,6 +99,10 @@ export default function GraphCanvas() {
         onConnect={onConnect}
         onSelectionChange={onSelection}
         onNodeClick={(_, node) => setSelected((node as Node<NodeData>).id)}
+        onNodeDoubleClick={(_, node) => {
+          setSelected((node as Node<NodeData>).id);
+          toggleHistory();
+        }}
         onPaneClick={() => setSelected(null)}
         panOnScroll
         panOnDrag={false}

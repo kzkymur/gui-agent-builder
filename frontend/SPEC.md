@@ -23,8 +23,9 @@
 **Node Types** (keys → fields used)
 
 - `entry` → `name`, `inputs: { key: string, value?: string }[]`.
-- `llm` → `name`, `provider`, `model`, `temperature?`, `maxTokens?`, `system?`, `mcpServers: NodeID[]`, `inputs: { key: string, description: string }[]`, `responseSchema`, `outputPointers: JSONPointer[]`.
-- `switch` → `name`, `threshold?` (0..1, default 0.5).
+- `llm` → `name`, `provider`, `model`, `temperature?`, `maxTokens?`, `system?`, `mcpServers: NodeID[]`, `inputs: { key: string, description: string, mode?: "normal"|"optional"|"holding"|"optional_holding", trigger?: boolean }[]`, `responseSchema`, `outputPointers: JSONPointer[]`.
+- `switch` → `name`, `threshold?` (0..1, default 0.5), `inputs`: `{ gate?: { mode?: "normal"|"holding", trigger?: boolean }, signal?: { ... } }`.
+  - Both inputs are always required. Only Holding and Trigger are configurable.
 - `mcp` → `name`, `url`, `token?`.
 - `end` → `name`.
 
@@ -46,9 +47,13 @@
 - Selection passes first selected node to sidebar.
  - Selection is controlled: store `selectedId` drives React Flow `node.selected`.
 - Each output port corresponds to a JSON Pointer (RFC 6901) in `outputPointers` (array). Adding/removing rows adds/removes output ports. No implicit defaults are added.
-- LLM inputs are defined as a list of handles with `key` and `description`.
+- LLM inputs are defined as a list of handles with `key`, `description`, `mode` (required/optional × consume/hold), and `trigger` (default true). When `trigger=false`, updates to that handle do not start the next node; values are buffered only.
+  - Visual encoding: Required → red channel, Holding → green channel, Trigger → blue channel. Input handle color is the additive RGB mix of enabled attributes; the three checkboxes in the editor are tinted red/green/blue to match.
 - Persistence fidelity: Response Schema is stored as raw string while typing and as parsed JSON object after blur (when valid). Either form is saved to `nodes.data.responseSchema` exactly as edited.
 - Sidebar: A collapsed “Detail Settings” section lets users edit `provider`, `model`, `temperature`, and `maxTokens`. These map 1:1 to backend `/llm/invoke` fields; `maxTokens` is sent as `max_tokens`.
+  - Inputs editor uses row checkboxes for `Required`, `Holding`, and `Trigger` in place of the old mode dropdown.
+  - For Switch nodes, `Required` is implicit and not shown; only `Holding` and `Trigger` are present for gate and signal.
+  - The Temperature slider is disabled when the selected model’s `supports_temperature` is `false` (from `GET /model`).
 
 **UI/Interaction Specs**
 
@@ -73,7 +78,7 @@
     - Copy/Paste: Cmd/Ctrl+C copies all selected nodes and all edges whose endpoints are both within the selection; Cmd/Ctrl+V pastes a duplicated subgraph offset by (30, 30) with new IDs.
     - Pasted subgraph preserves node `data` verbatim and rewires internal edges to the new node IDs. External edges are not copied.
 - Sidebar sections for LLM nodes:
-- "LLM Settings": provider (dropdown from `GET /providers`), model (dropdown from `GET /model?provider=…`), temperature (0–1 slider with Reset to use provider default), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
+- "LLM Settings": provider (dropdown from `GET /providers`), model (dropdown from `GET /model?provider=…`), temperature (0–1 slider with Reset to use provider default; disabled when `supports_temperature=false`), system prompt, MCP servers, and Response Schema (JSON). Fields are empty by default. The Response Schema is a plain JSON Schema object; no wrapper fields like `name` are used.
 - "Inputs": editor for input handles. Each row: `key` (short identifier) and `description` (longer text included in the prompt).
 - "Outputs": JSON Pointers only (`outputPointers`). The Response Schema is not part of the Outputs section.
 
@@ -117,4 +122,4 @@ er, used as a label and variable name.
 - Store (to implement `src/engine/store.ts`): `{ run, activeRunning: Map<actId,{nodeId,startedAt}>, inputBufByNode, latestInputByNode, latestOutputByNode, trace:{nodes,roots} }`.
 - Ignite: build `{key:value}` from Entry nodes, write latest/input buffers, append root trace nodes, and call `runNode(entryId)` immediately.
 - runNode: if already running, return; snapshot `inputBufByNode[nodeId]`, write a trace start, await adapter (Entry/LLM/Switch/End), then update trace and latestOutput and call `propagate`.
-- propagate: for each outgoing edge, derive values by handle rules (Entry out‑i, LLM out‑i via `outputPointers[i]`, Switch forwards `{ value: signal }` only when its gate ≥ threshold), merge into `inputBufByNode[target]`, coalesce same‑tick triggers, and schedule `runNode(target)` via microtask; finalize when none are running/scheduled.
+- propagate: for each outgoing edge, derive values by handle rules (Entry out‑i, LLM out‑i via `outputPointers[i]`, Switch forwards `{ value: signal }` only when its gate ≥ threshold), merge into `inputBufByNode[target]`, respect target input `trigger=false` for both LLM and Switch nodes, coalesce same‑tick triggers, and schedule `runNode(target)` via microtask; finalize when none are running/scheduled.

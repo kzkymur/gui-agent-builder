@@ -120,6 +120,21 @@ body {
   display: grid;
   gap: 10px;
 }
+.io-history summary { cursor: pointer; }
+.io-history pre { font-size: 13px; word-break: break-word; }
+.io-pre {
+  white-space: pre-wrap;
+  background: var(--gray-2);
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 320px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.io-pre.pretty { font-family: inherit; background: #0f0f12; }
+.io-kv code { background: transparent; }
+.io-history, .io-history .io-item { width: 100%; }
+.sidebar { scrollbar-gutter: stable both-edges; }
 .section-title {
   margin-top: 6px;
   font-size: 11px;

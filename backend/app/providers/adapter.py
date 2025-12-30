@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from pathlib import Path
+import json
 
 from .logging import BufferingHandler
 from ..utils.schema import (
@@ -283,7 +285,8 @@ def _create_chat_model(
     response_schema: Optional[Dict[str, Any]],
 ):
     params: Dict[str, Any] = {"model": model}
-    if temperature is not None:
+    # Only include temperature if the model supports it
+    if temperature is not None and _model_supports_temperature(provider, model):
         params["temperature"] = temperature
     if max_tokens is not None:
         params["max_tokens"] = max_tokens
@@ -333,6 +336,30 @@ def _create_chat_model(
         return ChatGoogleGenerativeAI(**params), "google"
 
     raise RuntimeError(f"Unsupported provider: {provider}")
+
+
+def _model_supports_temperature(provider: str, model_id: str) -> bool:
+    """Lookup support from the provider model catalog JSON. Defaults to True.
+
+    The catalog lives in backend/app/model_catalog/<provider>.json and each model
+    entry may include `supports_temperature: boolean`.
+    """
+    try:
+        # provider catalogs live under app/model_catalog; from providers/, go up one
+        base = Path(__file__).parent.parent / "model_catalog"
+        path = base / f"{provider}.json"
+        data = json.loads(path.read_text())
+        models = data.get("models", []) if isinstance(data, dict) else []
+        for m in models:
+            if str(m.get("id")) == str(model_id):
+                val = m.get("supports_temperature")
+                if isinstance(val, bool):
+                    return val
+                break
+    except Exception:
+        # On any error (missing file or bad JSON), assume supported
+        pass
+    return True
 
 
 def _is_openai_available() -> bool:

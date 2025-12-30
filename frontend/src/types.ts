@@ -16,6 +16,9 @@ export type LLMInput = {
   // - holding: required; retained after call
   // - optional_holding: not required; retained after call if present
   mode?: "normal" | "optional" | "holding" | "optional_holding";
+  // When false, updates to this handle do not trigger execution.
+  // Existing graphs default to true when omitted.
+  trigger?: boolean;
 };
 
 export type LLMData = {
@@ -41,6 +44,11 @@ export type SwitchData = {
   // Two-input gate: numeric/boolean 'gate' controls whether 'signal' passes through.
   // Gate is coerced to a number (false→0, true→1). Passes when gate >= threshold.
   threshold?: number; // default 0.5, range 0..1
+  // Optional per-input behavior mirroring LLM inputs
+  inputs?: {
+    gate?: { mode?: "normal" | "optional" | "holding" | "optional_holding"; trigger?: boolean };
+    signal?: { mode?: "normal" | "optional" | "holding" | "optional_holding"; trigger?: boolean };
+  };
 };
 
 export type MCPData = {

@@ -37,25 +37,22 @@
       "id": "o3-mini",
       "name": "o3 mini",
       "type": "chat",
-      "description": "Low-cost Omni for speed"
+      "description": "Low-cost Omni for speed",
+      "supports_temperature": false
     },
     {
       "id": "o1",
       "name": "o1",
       "type": "chat",
-      "description": "Reasoning‑focused model"
-    },
-    {
-      "id": "o1-mini",
-      "name": "o1 mini",
-      "type": "chat",
-      "description": "Small, cost‑effective reasoning model"
+      "description": "Reasoning‑focused model",
+      "supports_temperature": false
     },
     {
       "id": "o1-pro",
       "name": "o1 Pro",
       "type": "chat",
-      "description": "Premium reasoning model"
+      "description": "Premium reasoning model",
+      "supports_temperature": false
     },
     {
       "id": "gpt-4.1",

@@ -22,20 +22,22 @@ export function InputsEditor({
     key: string;
     description: string;
     mode?: "normal" | "optional" | "holding" | "optional_holding";
+    trigger?: boolean;
   }[];
   onChange: (
     v: {
       key: string;
       description: string;
       mode?: "normal" | "optional" | "holding" | "optional_holding";
+      trigger?: boolean;
     }[]
   ) => void;
 }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
-  const list = inputs ?? [];
+  const list = Array.isArray(inputs) ? inputs : [];
   const setAt = (
     i: number,
-    patch: Partial<{ key: string; description: string }>
+    patch: Partial<{ key: string; description: string; mode: any; trigger: boolean }>
   ) => {
     const next = list.map((item, idx) =>
       idx === i ? { ...item, ...patch } : item
@@ -43,7 +45,7 @@ export function InputsEditor({
     onChange(next);
   };
   const removeAt = (i: number) => onChange(list.filter((_, idx) => idx !== i));
-  const add = () => onChange([...(list ?? []), { key: "", description: "" }]);
+  const add = () => onChange([...(list || []), { key: "", description: "" }]);
   return (
     <div className="field">
       <Text as="span" weight="medium">
@@ -53,28 +55,54 @@ export function InputsEditor({
         {list.map((it, i) => (
           // Use a stable key independent of the input value to avoid remounting and blur
           <div key={`in-${i}`} style={{ display: "grid", gap: 6 }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              <Select.Root
-                value={it.mode ?? "normal"}
-                onValueChange={(val) => setAt(i, { mode: val as any })}
-                disabled={isBusy}
-              >
-                <Select.Trigger style={{ width: 100 }} />
-                <Select.Content>
-                  <Select.Item value="normal">
-                    Normal (required, consume)
-                  </Select.Item>
-                  <Select.Item value="optional">
-                    Optional (not required, consume)
-                  </Select.Item>
-                  <Select.Item value="holding">
-                    Holding (required, retain)
-                  </Select.Item>
-                  <Select.Item value="optional_holding">
-                    Optional + Holding (not required, retain)
-                  </Select.Item>
-                </Select.Content>
-              </Select.Root>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {(() => {
+                const mode = String(it.mode ?? "normal");
+                const isOptional = mode === "optional" || mode === "optional_holding";
+                const isHolding = mode === "holding" || mode === "optional_holding";
+                const onToggle = (opts: { required?: boolean; holding?: boolean }) => {
+                  const required = opts.required ?? !isOptional;
+                  const holding = opts.holding ?? isHolding;
+                  const nextMode = required
+                    ? (holding ? "holding" : "normal")
+                    : (holding ? "optional_holding" : "optional");
+                  setAt(i, { mode: nextMode as any });
+                };
+                return (
+                  <>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Checkbox
+                        color="red"
+                        checked={!isOptional}
+                        onCheckedChange={(v) => onToggle({ required: Boolean(v) })}
+                        disabled={isBusy}
+                        style={{ paddingLeft: 0, paddingRight: 0 }}
+                      />
+                      <span style={{ color: !isOptional ? "#ef4444" : "#9ca3af" }}>Required</span>
+                    </label>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Checkbox
+                        color="green"
+                        checked={isHolding}
+                        onCheckedChange={(v) => onToggle({ holding: Boolean(v) })}
+                        disabled={isBusy}
+                        style={{ paddingLeft: 0, paddingRight: 0 }}
+                      />
+                      <span style={{ color: isHolding ? "#16a34a" : "#9ca3af" }}>Holding</span>
+                    </label>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <Checkbox
+                        color="blue"
+                        checked={it.trigger !== false}
+                        onCheckedChange={(v) => setAt(i, { trigger: Boolean(v) })}
+                        disabled={isBusy}
+                        style={{ paddingLeft: 0, paddingRight: 0 }}
+                      />
+                      <span style={{ color: it.trigger !== false ? "#3b82f6" : "#9ca3af" }}>Trigger</span>
+                    </label>
+                  </>
+                );
+              })()}
               <TextField.Root
                 style={{ width: "30%" }}
                 placeholder="key"
@@ -138,7 +166,7 @@ export default function LLMPanel({
   const [providerOptions, setProviderOptions] = React.useState<string[]>([]);
   const provider = (draft as LLMData).provider ?? "";
   const [modelOptions, setModelOptions] = React.useState<
-    { id: string; name?: string; description?: string }[]
+    { id: string; name?: string; description?: string; supports_temperature?: boolean }[]
   >([]);
   const [modelsLoading, setModelsLoading] = React.useState(false);
   React.useEffect(() => {
@@ -173,16 +201,23 @@ export default function LLMPanel({
       try {
         const data = await rawGet<{
           provider: string;
-          models: Array<{ id: string; name?: string; description?: string }>;
+          models: Array<{ id: string; name?: string; description?: string; supports_temperature?: boolean }>;
         }>(`/model?provider=${encodeURIComponent(provider)}`);
         const list = Array.isArray(data?.models) ? data.models : [];
         if (!cancelled) {
           const opts = list.map((m) => {
-            const item: { id: string; name?: string; description?: string } = {
+            const item: { id: string; name?: string; description?: string; supports_temperature?: boolean } = {
               id: String(m.id),
             };
             if (m.name) item.name = m.name;
             if (m.description) item.description = m.description;
+            // Prefer explicit flag from backend; otherwise infer for known families
+            const explicit = (m as any).supports_temperature;
+            if (typeof explicit === "boolean") {
+              item.supports_temperature = Boolean(explicit);
+            } else if (provider === "openai" && /^o1(\b|-)/.test(item.id)) {
+              item.supports_temperature = false;
+            }
             return item;
           });
           setModelOptions(opts);
@@ -291,6 +326,11 @@ export default function LLMPanel({
                   typeof (draft as LLMData).temperature === "number"
                     ? ((draft as LLMData).temperature as number)
                     : 0.7;
+                const selectedModel = modelOptions.find((m) => m.id === (draft as LLMData).model);
+                // Disable when the flag is explicitly false or when we can infer from id/provider
+                const inferredUnsupported =
+                  (provider === "openai" && /^o1(\b|-)/.test(String((draft as LLMData).model || "")));
+                const tempSupported = (selectedModel?.supports_temperature !== false) && !inferredUnsupported;
                 return (
                   <input
                     type="range"
@@ -301,7 +341,7 @@ export default function LLMPanel({
                     onChange={(e) =>
                       onPatch({ temperature: Number(e.target.value) })
                     }
-                    disabled={isBusy}
+                    disabled={isBusy || !tempSupported}
                     style={{ flex: 1 }}
                   />
                 );
@@ -316,13 +356,23 @@ export default function LLMPanel({
                 size="1"
                 variant="soft"
                 onClick={() => onPatch({ temperature: null })}
-                disabled={isBusy}
+                disabled={isBusy ||
+                  modelOptions.find((m) => m.id === (draft as LLMData).model)?.supports_temperature === false}
                 title="Reset to model default"
               >
                 Reset
               </Button>
             </div>
-            <div className="help">0–1 (Reset = provider default)</div>
+            <div className="help">
+              {(() => {
+                const selectedModel = modelOptions.find((m) => m.id === (draft as LLMData).model);
+                const inferredUnsupported = provider === "openai" && /^o1(\b|-)/.test(String((draft as LLMData).model || ""));
+                if ((selectedModel && selectedModel.supports_temperature === false) || inferredUnsupported) {
+                  return "Temperature not supported by this model.";
+                }
+                return "0–1 (Reset = provider default)";
+              })()}
+            </div>
           </div>
         </div>
       </details>

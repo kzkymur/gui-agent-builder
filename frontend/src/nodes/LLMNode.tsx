@@ -6,18 +6,18 @@ import NodeChrome from "./NodeChrome";
 export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
   const outs = Array.isArray(data.outputPointers) ? data.outputPointers : [];
   const ins = Array.isArray(data.inputs) ? data.inputs : [];
-  const colorForMode = (
-    mode: LLMData["inputs"] extends Array<infer T>
-      ? T extends { mode?: string }
-        ? T["mode"]
-        : string | undefined
-      : string | undefined
-  ) => {
-    const m = (mode ?? "normal") as string;
-    if (m === "optional") return { bg: "#3b82f6", border: "#1e40af" }; // blue
-    if (m === "holding") return { bg: "#f59e0b", border: "#92400e" }; // amber
-    if (m === "optional_holding") return { bg: "#8b5cf6", border: "#4c1d95" }; // violet
-    return { bg: "#000", border: "#d1d5db" }; // normal → white with gray border
+  const colorForAttrs = (inp: { mode?: string; trigger?: boolean }) => {
+    const mode = String(inp?.mode ?? "normal");
+    const required = !(mode === "optional" || mode === "optional_holding"); // red
+    const holding = mode === "holding" || mode === "optional_holding"; // green
+    const trigger = inp?.trigger !== false; // blue
+    const r = required ? 255 : 0;
+    // Tone down green channel to reduce visual brightness
+    const g = holding ? 170 : 0;
+    const b = trigger ? 255 : 0;
+    const bg = `rgb(${r}, ${g}, ${b})`;
+    const border = `rgb(${Math.max(0, r - 96)}, ${Math.max(0, g - 96)}, ${Math.max(0, b - 96)})`;
+    return { bg, border };
   };
   return (
     <NodeChrome
@@ -33,7 +33,7 @@ export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
                 style={{ display: "flex", alignItems: "center", gap: 6 }}
               >
                 {(() => {
-                  const c = colorForMode((inp as { mode?: string }).mode);
+                  const c = colorForAttrs(inp as { mode?: string; trigger?: boolean });
                   return (
                     <Handle
                       id={`in-${idx}`}
@@ -77,10 +77,6 @@ export default function LLMNode({ id, data }: RFNodeProps<LLMData>) {
         <div className="kv">
           <span>Model</span>
           <code>{data.model}</code>
-        </div>
-        <div className="kv">
-          <span>Schema</span>
-          <code>{data.responseSchema ? "defined" : "—"}</code>
         </div>
       </div>
     </NodeChrome>

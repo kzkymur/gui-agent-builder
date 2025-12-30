@@ -89,6 +89,24 @@ function ensureSchema(db: SqlDatabase) {
       COMMIT;
     `);
   }
+  // v4: per-node I/O persistence
+  if (v < 4) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE IF NOT EXISTS node_io (
+        id INTEGER PRIMARY KEY,
+        nodeId TEXT NOT NULL,
+        runId TEXT,
+        traceId TEXT,
+        input TEXT,
+        output TEXT,
+        ts INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_node_io_node_ts ON node_io(nodeId, ts);
+      PRAGMA user_version = 4;
+      COMMIT;
+    `);
+  }
 }
 
 export type PersistNode = { id: string; type: string; x: number; y: number; data: unknown };
@@ -177,4 +195,85 @@ export function saveSetting(key: string, value: string): void {
   stmt.run([key, value]);
   stmt.free();
   exportAndPersist();
+}
+
+export type NodeIORecord = {
+  id?: number;
+  nodeId: string;
+  runId?: string;
+  traceId?: string;
+  input?: unknown;
+  output?: unknown;
+  ts?: number;
+};
+
+export function appendNodeIO(rec: NodeIORecord): void {
+  if (!DB) throw new Error("DB not initialized");
+  const stmt = DB.prepare(
+    "INSERT INTO node_io(nodeId, runId, traceId, input, output, ts) VALUES(?, ?, ?, ?, ?, ?)",
+  );
+  const ts = typeof rec.ts === "number" ? rec.ts : Date.now();
+  stmt.run([
+    rec.nodeId,
+    rec.runId ?? null,
+    rec.traceId ?? null,
+    rec.input == null ? null : JSON.stringify(rec.input),
+    rec.output == null ? null : JSON.stringify(rec.output),
+    ts,
+  ]);
+  stmt.free();
+  exportAndPersist();
+}
+
+export function loadLatestNodeIO(nodeId: string): NodeIORecord | undefined {
+  if (!DB) throw new Error("DB not initialized");
+  const res = DB.exec(
+    `SELECT id, nodeId, runId, traceId, input, output, ts FROM node_io WHERE nodeId = '${nodeId.replaceAll("'","''")}' ORDER BY ts DESC LIMIT 1`,
+  );
+  if (!res.length || !res[0].values.length) return undefined;
+  const [id, nId, runId, traceId, input, output, ts] = res[0].values[0];
+  const parse = (s: unknown) => {
+    if (typeof s !== "string" || !s.length) return undefined;
+    try {
+      return JSON.parse(s);
+    } catch {
+      return undefined;
+    }
+  };
+  return {
+    id: Number(id),
+    nodeId: String(nId),
+    runId: runId ? String(runId) : undefined,
+    traceId: traceId ? String(traceId) : undefined,
+    input: parse(input),
+    output: parse(output),
+    ts: Number(ts),
+  };
+}
+
+export function listNodeIO(nodeId: string, limit = 50): NodeIORecord[] {
+  if (!DB) throw new Error("DB not initialized");
+  const safeId = nodeId.replaceAll("'", "''");
+  const res = DB.exec(
+    `SELECT id, nodeId, runId, traceId, input, output, ts FROM node_io WHERE nodeId='${safeId}' ORDER BY ts DESC LIMIT ${Math.max(1, Math.min(500, limit))}`,
+  );
+  if (!res.length) return [];
+  const rows = res[0].values;
+  const parse = (s: unknown) => {
+    if (typeof s !== "string" || !s.length) return undefined;
+    try {
+      return JSON.parse(s);
+    } catch {
+      return undefined;
+    }
+  };
+  return rows.map(([id, nId, runId, traceId, input, output, ts]) => ({
+    id: Number(id),
+    nodeId: String(nId),
+    runId: runId ? String(runId) : undefined,
+    traceId: traceId ? String(traceId) : undefined,
+    input: parse(input),
+    output: parse(output),
+    ts: Number(ts),
+  }));
 }

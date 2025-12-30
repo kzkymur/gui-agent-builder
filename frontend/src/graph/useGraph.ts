@@ -23,6 +23,10 @@ function normalizeNodeData(type: string | undefined, data: unknown): NodeData {
             ? (m as any)
             : "normal";
         })(),
+        trigger: ((): boolean => {
+          const t = (i as { trigger?: unknown })?.trigger;
+          return typeof t === "boolean" ? t : true;
+        })(),
       }));
     }
     if (d.outputPointers && !Array.isArray(d.outputPointers)) d.outputPointers = [];

@@ -38,7 +38,9 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
 - `GET /model`
   - Query: `provider` (string, required) — one of the known provider ids returned by `/providers`.
   - Returns the model list for the given provider, sourced from a provider‑specific JSON file kept in `app/model_catalog/<provider>.json`.
-  - 200 `{ "provider": "openai", "models": [{ "id": "gpt-4o-mini", "name": "GPT‑4o mini", "description": "...", "type": "chat", "context_window": 128000 }, ...] }`
+  - Each model entry may include capability flags. New flag: `supports_temperature` (boolean, default `true`).
+    - Example: OpenAI `o1` family does not support `temperature`.
+  - 200 `{ "provider": "openai", "models": [{ "id": "gpt-4o-mini", "name": "GPT‑4o mini", "description": "...", "type": "chat", "context_window": 128000, "supports_temperature": true }, { "id": "o1", "name": "o1", "type": "chat", "supports_temperature": false }, ...] }`
   - 400 when `provider` is missing or unsupported.
   - 404 when the catalog file for a supported provider is not found.
 
@@ -57,7 +59,7 @@ Non‑Goals: Job scheduling, persistence, graph execution, user/session storage.
             - Explicit values you set are preserved.
         - Anthropic: bound as a synthetic tool with `input_schema = <your schema>` when no MCP tools are in use.
         - DeepSeek: emulates JSON-only or schema-guided replies via prompt injection when requested.
-    - `temperature` (number, optional)
+    - `temperature` (number, optional) — ignored when the selected model does not support it (backend omits the field to avoid upstream API errors).
     - `max_tokens` (number, optional)
     - `extra` (object, optional) — provider‑specific passthrough fields.
       - DeepSeek: `{ "json_mode": true }` triggers emulated JSON‑only responses (no schema). Backend prepends a strict instruction and best‑effort parses the reply as JSON.

@@ -79,6 +79,12 @@
 - **Error Handling**
   - The backend returns proper HTTP error status codes for any LLM or MCP failure.
 
+### Node I/O Persistence
+- Each node persists its own Input and Output to the in‑browser SQLite (sql.js/wasm) database when its action completes.
+- A new table `node_io` records one row per node completion with columns:
+  - `id INTEGER PRIMARY KEY`, `nodeId TEXT`, `runId TEXT`, `traceId TEXT`, `input TEXT`, `output TEXT`, `ts INTEGER`.
+- Propagation performs a pre‑action readiness check using current input handles. If ready, the node action is invoked; otherwise it waits until inputs are prepared.
+
 ## Frontend Layout
 
 - `frontend/`
