@@ -4,11 +4,13 @@ import { loadSettings, saveSetting } from "../db/sqlite";
 type SettingsState = {
   apiKey: string; // legacy, global fallback
   apiKeys: Record<string, string>; // per-provider keys by id
+  travilyApiKey?: string; // Tavily (web search) key
   sidebarWidth: number; // px
   sidebarVisible: boolean;
   footerHeight: number; // px
   setApiKey: (key: string) => void;
   setApiKeyFor: (providerId: string, key: string) => void;
+  setTravilyApiKey: (key: string) => void;
   setSidebarWidth: (px: number) => void;
   setSidebarVisible: (v: boolean) => void;
   setFooterHeight: (px: number) => void;
@@ -18,6 +20,7 @@ type SettingsState = {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   apiKey: "",
   apiKeys: {},
+  travilyApiKey: "",
   sidebarWidth: 380,
   sidebarVisible: true,
   footerHeight: 200,
@@ -34,6 +37,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ apiKeys: next });
     try {
       saveSetting("api_keys", JSON.stringify(next));
+    } catch {}
+  },
+  setTravilyApiKey: (key) => {
+    set({ travilyApiKey: key });
+    try {
+      saveSetting("tavily_api_key", key);
     } catch {}
   },
   setSidebarWidth: (px) => {
@@ -69,6 +78,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             return {};
           }
         })(),
+        travilyApiKey: all.tavily_api_key ?? "",
         sidebarWidth: Number(all.sidebar_width ?? 380) || 380,
         sidebarVisible: (all.sidebar_visible ?? "1") !== "0",
         footerHeight: Number(all.footer_height ?? 200) || 200,

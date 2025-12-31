@@ -17,6 +17,7 @@ export default function NodeEditor() {
   const node = nodes.find((n) => n.id === selectedId) ?? null;
   const [draft, setDraft] = React.useState<NodeData | null>(node?.data ?? null);
   const lastSavedRef = React.useRef<string | null>(node ? JSON.stringify(node.data ?? {}) : null);
+  const currentNodeIdRef = React.useRef<string | null>(node?.id ?? null);
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const showHistory = useGraphUI((s) => s.showHistory);
   const toggleHistory = useGraphUI((s) => s.toggleHistory);
@@ -24,28 +25,27 @@ export default function NodeEditor() {
   React.useEffect(() => {
     setDraft(node?.data ?? null);
     lastSavedRef.current = node ? JSON.stringify(node.data ?? {}) : null;
+    currentNodeIdRef.current = node?.id ?? null;
   }, [node]);
 
   React.useEffect(() => {
     if (!node || !draft) return;
     let cancelled = false;
     const pending = JSON.stringify(draft);
+    const nodeIdAtSchedule = node.id;
     const t = setTimeout(() => {
       if (cancelled) return;
-      setNodes((prev) => prev.map((n) => (n.id === node.id ? { ...n, data: draft } : n)));
-      lastSavedRef.current = pending;
+      // Only persist if we are still editing the same node (avoid cross-write on fast selection changes)
+      if (currentNodeIdRef.current === nodeIdAtSchedule && selectedId === nodeIdAtSchedule) {
+        setNodes((prev) => prev.map((n) => (n.id === nodeIdAtSchedule ? { ...n, data: draft } : n)));
+        lastSavedRef.current = pending;
+      }
     }, 200);
     return () => {
       cancelled = true;
       clearTimeout(t);
-      // Flush only if different from last saved to avoid update loops
-      const last = lastSavedRef.current;
-      if (last !== pending) {
-        setNodes((prev) => prev.map((n) => (node && n.id === node.id ? { ...n, data: draft } : n)));
-        lastSavedRef.current = pending;
-      }
     };
-  }, [draft, node, setNodes]);
+  }, [draft, node, selectedId, setNodes]);
 
   if (!node || !draft) return <div style={{ color: "var(--muted)" }}>Select a node to edit.</div>;
 

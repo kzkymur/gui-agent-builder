@@ -255,7 +255,7 @@ export function listNodeIO(nodeId: string, limit = 50): NodeIORecord[] {
   if (!DB) throw new Error("DB not initialized");
   const safeId = nodeId.replaceAll("'", "''");
   const res = DB.exec(
-    `SELECT id, nodeId, runId, traceId, input, output, ts FROM node_io WHERE nodeId='${safeId}' ORDER BY ts DESC LIMIT ${Math.max(1, Math.min(500, limit))}`,
+    `SELECT id, nodeId, runId, traceId, input, output, ts FROM node_io WHERE nodeId='${safeId}' ORDER BY ts ASC LIMIT ${Math.max(1, Math.min(500, limit))}`,
   );
   if (!res.length) return [];
   const rows = res[0].values;
@@ -276,4 +276,18 @@ export function listNodeIO(nodeId: string, limit = 50): NodeIORecord[] {
     output: parse(output),
     ts: Number(ts),
   }));
+}
+
+export function clearNodeIO(nodeId: string): void {
+  if (!DB) throw new Error("DB not initialized");
+  const stmt = DB.prepare("DELETE FROM node_io WHERE nodeId = ?");
+  stmt.run([nodeId]);
+  stmt.free();
+  exportAndPersist();
+}
+
+export function clearAllNodeIO(): void {
+  if (!DB) throw new Error("DB not initialized");
+  DB.exec("DELETE FROM node_io");
+  exportAndPersist();
 }

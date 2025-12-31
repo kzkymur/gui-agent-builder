@@ -24,6 +24,8 @@ export type EngineState = {
   run: RunState;
   // activationId -> { nodeId, startedAt }
   activeRunning: Map<string, { nodeId: string; startedAt: number }>;
+  // cancellation flag: when true, engine should not schedule/run further work
+  cancelRequested?: boolean;
   inputBufByNode: Record<string, Record<string, unknown>>;
   latestInputByNode: Record<string, Record<string, unknown> | undefined>;
   latestOutputByNode: Record<string, unknown>;
@@ -33,6 +35,7 @@ export type EngineState = {
   resetRun: (runId?: string) => void;
   addActive: (activationId: string, nodeId: string) => void;
   removeActive: (activationId: string) => void;
+  cancelRun: () => void;
   traceStart: (nodeId: string, parentId?: string) => string;
   traceFinish: (
     traceId: string,
@@ -50,6 +53,7 @@ export type EngineState = {
 export const useEngineStore = create<EngineState>((set) => ({
   run: { runId: "", status: "idle", errorCount: 0 },
   activeRunning: new Map(),
+  cancelRequested: false,
   inputBufByNode: {},
   latestInputByNode: {},
   latestOutputByNode: {},
@@ -64,6 +68,7 @@ export const useEngineStore = create<EngineState>((set) => ({
         errorCount: 0,
       },
       activeRunning: new Map(),
+      cancelRequested: false,
       inputBufByNode: {},
       latestInputByNode: {},
       latestOutputByNode: {},
@@ -90,6 +95,20 @@ export const useEngineStore = create<EngineState>((set) => ({
         } as Partial<EngineState>;
       }
       return base as Partial<EngineState>;
+    }),
+  cancelRun: () =>
+    set((s) => {
+      // Mark cancelled and clear active indicators immediately
+      const now = Date.now();
+      return {
+        cancelRequested: true,
+        activeRunning: new Map(),
+        run: {
+          ...s.run,
+          status: "cancelled",
+          endedAt: now,
+        },
+      } as Partial<EngineState>;
     }),
   traceStart: (nodeId, parentId) => {
     const id = `${nodeId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

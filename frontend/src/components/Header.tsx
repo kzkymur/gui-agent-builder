@@ -1,4 +1,5 @@
 import { Button, Popover, Select, TextField } from "@radix-ui/themes";
+import { clearAllNodeIO } from "../db/sqlite";
 import React, { useEffect, useState } from "react";
 import { getBackendClient } from "../engine/backendClient";
 import { useSettingsStore } from "../engine/settings";
@@ -123,6 +124,29 @@ export default function Header({
         </div>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <Button
+            variant="solid"
+            color="crimson"
+            disabled={!isBusy}
+            onClick={() => {
+              try {
+                useEngineStore.getState().cancelRun();
+              } catch {}
+            }}
+          >
+            Stop
+          </Button>
+          <Button
+            variant="solid"
+            color="red"
+            onClick={() => {
+              if (confirm("Clear all node logs? This cannot be undone.")) {
+                try { clearAllNodeIO(); } catch {}
+              }
+            }}
+          >
+            Clear all logs
+          </Button>
           <Popover.Root open={keysOpen} onOpenChange={setKeysOpen}>
             <Popover.Trigger>
               <Button variant="soft">API Keys ▾</Button>

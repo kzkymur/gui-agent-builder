@@ -86,6 +86,7 @@ export function ignite(nodes: Node<NodeData>[], edges: Edge[], entryIds?: string
   for (const id of ids) {
     const node = nodes.find((n) => n.id === id);
     if (!node) continue;
+    if (useEngineStore.getState().cancelRequested) return; // respect cancellation immediately
     const data = (node.data || {}) as Partial<EntryData>;
     const pairs = (data.inputs || []).map((it) => [it.key, it.value] as const).filter(([k]) => !!k);
     const input: Record<string, unknown> = Object.fromEntries(pairs);
@@ -104,10 +105,12 @@ function scheduleRunNode(
   parentTraceId?: string,
 ) {
   if (scheduled.has(nodeId)) return;
+  if (useEngineStore.getState().cancelRequested) return;
   scheduled.add(nodeId);
   Promise.resolve().then(() => {
     scheduled.delete(nodeId);
-    runNode(nodes, edges, nodeId, parentTraceId).catch(() => {});
+    if (!useEngineStore.getState().cancelRequested)
+      runNode(nodes, edges, nodeId, parentTraceId).catch(() => {});
   });
 }
 
@@ -120,12 +123,14 @@ async function runNode(
   const store = useEngineStore.getState();
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return;
+  if (useEngineStore.getState().cancelRequested) return;
   const traceId = store.traceStart(nodeId, parentTraceId);
   const input = structuredClone(store.inputBufByNode[nodeId] ?? ({} as Record<string, unknown>));
   let output: unknown;
   try {
     // mark node as actively running for UI highlighting
     useEngineStore.getState().addActive(traceId, nodeId);
+    if (useEngineStore.getState().cancelRequested) throw new Error("Cancelled");
     if (node.type === "entry") output = (await evalEntry(node, input)).output;
     else if (node.type === "llm") output = (await evalLLM(node, input)).output;
     else if (node.type === "switch") output = (await evalSwitch(node, input)).output;
@@ -299,7 +304,7 @@ async function propagate(
         : target.type === "switch"
           ? (changedKey === "gate" || changedKey === "signal" ? isSwitchTriggerForKey(target, changedKey) : true)
           : true;
-    if (shouldTrigger && isNodeReady(target, nextInput)) {
+    if (!useEngineStore.getState().cancelRequested && shouldTrigger && isNodeReady(target, nextInput)) {
       scheduleRunNode(nodes, edges, target.id, parentTraceId);
     }
   }
