@@ -156,11 +156,13 @@ export default function LLMPanel({
   draft,
   onPatch,
   mcpOptions,
+  fsOptions,
 }: {
   node: Node<NodeData>;
   draft: NodeData;
   onPatch: (patch: Partial<LLMData>) => void;
   mcpOptions: { id: string; name: string }[];
+  fsOptions: { id: string; name: string }[];
 }) {
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
   const [providerOptions, setProviderOptions] = React.useState<string[]>([]);
@@ -393,19 +395,15 @@ export default function LLMPanel({
         <Text as="span" weight="medium">
           Tools
         </Text>
-        {mcpOptions.length === 0 ? (
-          <div className="help">No MCP nodes available in the graph.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 6 }}>
-            {mcpOptions.map((opt) => {
-              const selected = ((draft as LLMData).mcpServers ?? []).includes(
-                opt.id
-              );
+        <div style={{ display: "grid", gap: 6 }}>
+          <div style={{ color: "var(--gray-11)" }}>MCP Servers</div>
+          {mcpOptions.length === 0 ? (
+            <div className="help">No MCP nodes available in the graph.</div>
+          ) : (
+            mcpOptions.map((opt) => {
+              const selected = ((draft as LLMData).mcpServers ?? []).includes(opt.id);
               return (
-                <div
-                  key={opt.id}
-                  style={{ display: "flex", alignItems: "center", gap: 8 }}
-                >
+                <div key={opt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <Checkbox
                     checked={selected}
                     onCheckedChange={(checked) => {
@@ -421,10 +419,35 @@ export default function LLMPanel({
                   <span>{opt.name}</span>
                 </div>
               );
-            })}
-          </div>
-        )}
-        <div className="help">Check to enable servers for this LLM.</div>
+            })
+          )}
+          <div style={{ color: "var(--gray-11)", marginTop: 6 }}>Filesystems</div>
+          {fsOptions.length === 0 ? (
+            <div className="help">No Filesystem nodes in the graph.</div>
+          ) : (
+            fsOptions.map((opt) => {
+              const selected = Array.isArray((draft as any).fsNodes) && ((draft as any).fsNodes as string[]).includes(opt.id);
+              return (
+                <div key={opt.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Checkbox
+                    checked={selected}
+                    onCheckedChange={(checked) => {
+                      const current: string[] = Array.isArray((draft as any).fsNodes) ? (draft as any).fsNodes : [];
+                      const isChecked = Boolean(checked);
+                      const next = isChecked
+                        ? Array.from(new Set([...current, opt.id]))
+                        : current.filter((id) => id !== opt.id);
+                      onPatch({ ...(draft as any), fsNodes: next } as any);
+                    }}
+                    disabled={isBusy}
+                  />
+                  <span>{opt.name}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="help">Enable tools the model can call.</div>
       </div>
 
       <hr className="divider" />

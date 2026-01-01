@@ -70,3 +70,8 @@ export type NodeData = Partial<EntryData & LLMData & SwitchData & MCPData & EndD
 };
 
 export type RFNodeProps<T extends NodeData> = NodeProps<T>;
+
+// Filesystem node data (frontend-only VFS backed by sqlite-wasm)
+export type FSData = {
+  name: string;
+};

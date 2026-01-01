@@ -43,7 +43,7 @@ export default function LLMOutputPointersEditor({
         {list.length === 0 && <div className="help">No outputs yet. Click “Add Output”.</div>}
         {list.map((ptr, idx) => (
           <div
-            key={`ptr-${ptr}`}
+            key={`ptr-${idx}`}
             style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr", alignItems: "center" }}
           >
             <div style={{ display: "flex", gap: 6 }}>

@@ -6,11 +6,7 @@ import { useSettingsStore } from "../engine/settings";
 import { useEngineStore } from "../engine/store";
 import { useBookmarks } from "../hooks/useBookmarks";
 
-export default function Header({
-  onAddNode,
-}: {
-  onAddNode: () => void;
-}) {
+export default function Header({ onAddNode }: { onAddNode: (type: string) => void }) {
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
   const travilyApiKey = useSettingsStore((s) => s.travilyApiKey ?? "");
@@ -68,17 +64,12 @@ export default function Header({
             <Select.Item value="llm">LLM</Select.Item>
             <Select.Item value="switch">Switch</Select.Item>
             <Select.Item value="mcp">MCP</Select.Item>
+            <Select.Item value="fs">Filesystem</Select.Item>
             <Select.Item value="end">End</Select.Item>
           </Select.Content>
         </Select.Root>
         <Button
-          onClick={() => {
-            // Share selected type with App via a custom event so it can add the correct node
-            window.dispatchEvent(
-              new CustomEvent("graph:setNewNodeType", { detail: { type: newNodeType } }),
-            );
-            onAddNode();
-          }}
+          onClick={() => onAddNode(newNodeType)}
           disabled={isBusy}
         >
           Add Node

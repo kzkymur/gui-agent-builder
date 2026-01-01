@@ -4,6 +4,7 @@ import type { LLMData, NodeData } from "../types";
 import { getBackendClient } from "./backendClient";
 import { getApiKey, useSettingsStore } from "./settings";
 import { useEngineStore } from "./store";
+import { getWsId, ensureConnected } from "./ws";
 
 export type EvalResult = { output: unknown };
 
@@ -73,6 +74,16 @@ export async function evalLLM(
     mcp: { servers: mcpServerObjects },
     extra: { web_search: Boolean((data as LLMData).webSearch) },
   } as unknown as import("./__generated__/backend").components["schemas"]["InvokeRequest"];
+  // Attach filesystem tool configuration and websocket id
+  const fsNodes: string[] = Array.isArray((data as any).fsNodes) ? (data as any).fsNodes : [];
+  (body as any).fs = { nodes: fsNodes.map((id) => ({ id })) };
+  if (fsNodes.length > 0) {
+    try {
+      const baseUrl = (import.meta as any).env?.["VITE_BACKEND_URL"] || "http://localhost:8000";
+      await ensureConnected(baseUrl);
+    } catch {}
+  }
+  (body as any).ws_conn_id = getWsId();
   // response_schema assigned via body initializer when provided
   try {
     const res = await getBackendClient().POST("/llm/invoke", {

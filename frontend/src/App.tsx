@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useEngineStore } from "./engine/store";
+import { disconnect as wsDisconnect, connect as wsConnect } from "./engine/ws";
 import FooterStatus from "./components/FooterStatus";
 import Header from "./components/Header";
 import { ignite } from "./engine/runtime";
@@ -52,8 +54,9 @@ export default function App() {
   // Keep App thin; persistence lives in useGraph()
 
   // Add new node based on selected type
-  const addNode = () => {
-    const newNode = makeDefaultNode(newNodeType, nodes.length);
+  const addNode = (typeArg?: NewNodeType) => {
+    const t = typeArg ?? newNodeType;
+    const newNode = makeDefaultNode(t, nodes.length);
     const next = [...nodes, newNode];
     setNodes(next);
     try {
@@ -111,17 +114,7 @@ export default function App() {
 
   // Bookmarks are handled entirely inside the useBookmarks hook and Header.
 
-  // Bridge events so child components don’t need props for global actions
-  useEffect(() => {
-    const onSetType = (e: Event) => {
-      const t = (e as CustomEvent).detail?.type as string | undefined;
-      if (t) setNewNodeType(t as NewNodeType);
-    };
-    window.addEventListener("graph:setNewNodeType", onSetType as EventListener);
-    return () => {
-      window.removeEventListener("graph:setNewNodeType", onSetType as EventListener);
-    };
-  }, []);
+  // Removed event bridge: Header now passes the selected type directly.
 
   // Initialize UI store after DB load
   useEffect(() => {
@@ -130,6 +123,31 @@ export default function App() {
       useGraphUI.getState().init(nodes, edges);
     } catch {}
   }, [dbReady, nodes, edges]);
+
+  // Manage websocket lifecycle for FS tools while any nodes are running and FS tools are in use
+  const runStatus = useEngineStore((s) => s.run.status);
+  // Connect WS at run start when any LLM has FS tools; disconnect a bit after run ends
+  useEffect(() => {
+    const baseUrl = (import.meta as any).env?.VITE_BACKEND_URL || "http://localhost:8000";
+    const fsInUse = nodes.some((n) => n.type === "llm" && Array.isArray((n.data as any)?.fsNodes) && (n.data as any).fsNodes.length > 0);
+    if (runStatus === "running" && fsInUse) {
+      try { wsConnect(baseUrl); } catch {}
+      return () => {};
+    }
+    if (runStatus !== "running") {
+      const t = window.setTimeout(() => wsDisconnect(), 3000);
+      return () => window.clearTimeout(t);
+    }
+  }, [runStatus, nodes]);
+
+  // Ensure disconnect shortly after no nodes are running (extra safety)
+  const activeCount = useEngineStore((s) => s.activeRunning.size);
+  useEffect(() => {
+    if (activeCount === 0 && runStatus !== "running") {
+      const t = window.setTimeout(() => wsDisconnect(), 1500);
+      return () => window.clearTimeout(t);
+    }
+  }, [activeCount, runStatus]);
 
   // Keep App in sync when graph UI store changes (user drags nodes, edits in sidebar)
   useEffect(() => {

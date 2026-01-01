@@ -12,6 +12,7 @@ from ..utils.schema import (
 )
 from .mcp import abuild_mcp_tools
 from .web_tools import maybe_build_tavily_tool
+from .fs_tools import build_fs_tools
 
 
 def provider_catalog() -> Dict[str, Dict[str, Any]]:
@@ -96,6 +97,13 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # Bind MCP tools if provided
     tools = await abuild_mcp_tools(payload.get("mcp"))
+    # Add frontend FS tools if configured
+    try:
+        fs_tools = await build_fs_tools(payload)
+        if fs_tools:
+            tools = (tools or []) + fs_tools
+    except Exception:
+        pass
     # Optionally add Tavily search tool when requested
     try:
         t_tool = await maybe_build_tavily_tool(payload)
@@ -106,7 +114,54 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise e
     if tools:
         try:
-            lc = lc.bind_tools(tools)
+            if provider == "openai":
+                # Build strict function tool schemas explicitly for FS tools to satisfy OpenAI
+                def _fs_schema(name: str) -> Optional[Dict[str, Any]]:
+                    if name.startswith("fs_read_file_"):
+                        return {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "Absolute path to read"},
+                            },
+                            "required": ["path"],
+                            "additionalProperties": False,
+                        }
+                    if name.startswith("fs_write_file_"):
+                        return {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "Absolute path to write"},
+                                "content": {"type": "string", "description": "Text content"},
+                            },
+                            "required": ["path", "content"],
+                            "additionalProperties": False,
+                        }
+                    if name.startswith("fs_list_directory_"):
+                        return {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "Directory to list"},
+                            },
+                            "required": ["path"],
+                            "additionalProperties": False,
+                        }
+                    return None
+
+                openai_tools: List[Dict[str, Any]] = []
+                for t in tools:
+                    name = str(getattr(t, "name", None) or "tool")
+                    desc = str(getattr(t, "description", ""))
+                    schema = _fs_schema(name)
+                    if schema is None:
+                        # fallback minimal strict schema
+                        schema = {"type": "object", "properties": {}, "required": [], "additionalProperties": False}
+                    openai_tools.append({
+                        "type": "function",
+                        "function": {"name": name, "description": desc, "parameters": schema, "strict": True},
+                    })
+                lc = lc.bind(tools=openai_tools)
+            else:
+                lc = lc.bind_tools(tools)
             cb.logs.append({
                 "event": "tools_bound",
                 "tools": [
@@ -114,8 +169,25 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
                     for t in tools
                 ]
             })
-        except Exception:
+        except Exception as e:
+            cb.logs.append({"event": "tools_bind_error", "error": str(e)})
             tools = []
+
+    # FS connectivity probe (to make WS frames visible and verify binding):
+    try:
+        fs_list = next((t for t in (tools or []) if str(getattr(t, "name", "")).startswith("fs_list_directory_")), None)
+        if fs_list is not None:
+            try:
+                cb.logs.append({"event": "fs_probe_start"})
+                if hasattr(fs_list, "ainvoke"):
+                    await fs_list.ainvoke({"path": "/"})
+                else:
+                    fs_list.invoke({"path": "/"})  # type: ignore[attr-defined]
+                cb.logs.append({"event": "fs_probe_ok"})
+            except Exception as e:
+                cb.logs.append({"event": "fs_probe_error", "error": str(e)})
+    except Exception:
+        pass
 
     # Anthropic structured outputs via tool binding
     # If MCP is configured, do NOT force the synthetic output tool — let the model plan tools first.

@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional, Literal
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,10 @@ class InvokeRequest(BaseModel):
     extra: Optional[Dict[str, Any]] = None
     retries: Optional[int] = Field(default=0, ge=0, le=5)
     mcp: Optional[Dict[str, Any]] = None  # { servers: [{name,url,headers?}], tools: [{server,name,description,input_schema}] }
+    # Filesystem tools config (frontend-provided)
+    fs: Optional[Dict[str, Any]] = None  # { nodes: [{id}] }
+    # Frontend WebSocket connection id for fs tools routing
+    ws_conn_id: Optional[str] = None
 
 
 class ErrorBody(BaseModel):
@@ -59,6 +63,8 @@ app = FastAPI(
     redoc_url=None,               # Disable ReDoc to keep surface minimal
     openapi_url="/openapi.json", # OpenAPI schema
 )
+
+from .ws_registry import set_ws, pop_ws, resolve_pending, get_ws, register_pending, list_connections
 
 # CORS: local dev defaults; tighten in prod/deploy
 app.add_middleware(
@@ -93,6 +99,69 @@ async def health():
 @app.get("/")
 async def root():
     return {"message": "See Swagger UI at /docs", "openapi": "/openapi.json"}
+
+
+@app.websocket("/ws/{conn_id}")
+async def websocket_endpoint(ws: WebSocket, conn_id: str):
+    await ws.accept()
+    set_ws(conn_id, ws)
+    try:
+        try:
+            print(f"[fs-ws] open {conn_id}")
+        except Exception:
+            pass
+        while True:
+            # Receive responses from frontend and dispatch to pending futures
+            data = await ws.receive_text()
+            try:
+                obj = json.loads(data)
+                if isinstance(obj, dict) and obj.get("type") == "ping":
+                    continue
+                if isinstance(obj, dict) and obj.get("type") == "connected":
+                    continue
+                if isinstance(obj, dict) and obj.get("type") == "res":
+                    cid = obj.get("id")
+                    if isinstance(cid, str) and cid:
+                        resolve_pending(conn_id, cid, obj)
+            except Exception:
+                # Ignore malformed
+                pass
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        pop_ws(conn_id)
+        try:
+            print(f"[fs-ws] close {conn_id}")
+        except Exception:
+            pass
+
+
+@app.get("/ws/test")
+async def ws_test(conn_id: str = Query(...), path: str = Query("/")):
+    ws = get_ws(conn_id)
+    if not ws:
+        raise HTTPException(status_code=400, detail={
+            "error": {"code": "ws_not_connected", "message": f"No websocket for {conn_id}", "details": {"active": list_connections()} }
+        })
+    call_id = f"test-{int(time.time()*1000)}"
+    fut = register_pending(conn_id, call_id)
+    msg = {"type": "req", "id": call_id, "action": "fs_list", "path": path}
+    try:
+        await ws.send_text(json.dumps(msg))
+        import asyncio
+        res = await asyncio.wait_for(fut, timeout=5.0)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "error": {"code": "ws_test_failed", "message": str(e), "details": None}
+        })
+
+
+@app.get("/ws/list")
+async def ws_list():
+    return {"connections": list_connections()}
 
 
 @app.get("/providers")

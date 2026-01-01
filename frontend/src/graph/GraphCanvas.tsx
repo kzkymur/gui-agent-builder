@@ -20,6 +20,7 @@ import EndNode from "../nodes/EndNode";
 import EntryNode from "../nodes/EntryNode";
 import LLMNode from "../nodes/LLMNode";
 import MCPNode from "../nodes/MCPNode";
+import FSNode from "../nodes/FSNode";
 import SwitchNode from "../nodes/SwitchNode";
 import type { NodeData } from "../types";
 import { useGraphUI } from "./uiStore";
@@ -40,6 +41,7 @@ export default function GraphCanvas() {
       llm: LLMNode,
       switch: SwitchNode,
       mcp: MCPNode,
+      fs: FSNode,
       end: EndNode,
     }),
     [],

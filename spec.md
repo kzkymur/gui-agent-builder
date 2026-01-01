@@ -106,3 +106,15 @@
 | **Switch** | Two inputs (gate, signal) and one output. Gate accepts number or boolean (false→0, true→1); forwards signal when gate ≥ threshold (configurable in sidebar). |
 | **MCP**    | Special node representing a Managed Compute Provider. Defined globally; referenced from LLM nodes. No inputs or outputs. |
 | **End**    | Terminal node; has no outputs. Displays its input value in the footer.                                                   |
+| **FS**     | Frontend virtual filesystem (sqlite‑wasm). Users explore via sidebar; LLMs can opt‑in as tools.                          |
+
+### Filesystem Tools
+- LLM settings shows checkboxes for existing FS nodes. When selected, the frontend includes an `fs` config in `/llm/invoke` with the selected node ids and a `ws_conn_id` that identifies a WebSocket connection opened to the backend for the duration of the run.
+- Backend exposes three tools per selected FS node:
+  - `fs_read_file_<nodeId>`: args `{ path }` → file content string
+  - `fs_write_file_<nodeId>`: args `{ path, content }` → "ok"
+  - `fs_list_directory_<nodeId>`: args `{ path }` → JSON array of `{ path, type, size? }`
+- Tools communicate over `/ws/{conn_id}` to the frontend, which executes requests against the sqlite‑wasm VFS.
+
+### Runtime WebSocket
+- Frontend opens a WebSocket to the backend when a run starts and closes it when the run stops (complete, error, or cancel). Only the frontend initiates/tears down the connection.

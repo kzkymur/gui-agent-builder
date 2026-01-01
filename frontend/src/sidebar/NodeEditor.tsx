@@ -3,12 +3,14 @@ import React from "react";
 import { useEngineStore } from "../engine/store";
 import { useGraphUI } from "../graph/uiStore";
 import type { NodeData } from "../types";
+import type { FSData } from "../types";
 import EndPanel from "./panels/EndPanel";
 import EntryPanel from "./panels/EntryPanel";
 import LLMPanel from "./panels/LLMPanel";
 import MCPPanel from "./panels/MCPPanel";
 import SwitchPanel from "./panels/SwitchPanel";
 import IOHistoryPanel from "./components/IOHistoryPanel";
+import FSPanel from "./panels/FSPanel";
 
 export default function NodeEditor() {
   const nodes = useGraphUI((s) => s.nodes);
@@ -54,6 +56,9 @@ export default function NodeEditor() {
   const mcpOptions = nodes
     .filter((n) => n.type === "mcp")
     .map((n) => ({ id: n.id, name: (n.data as NodeData | undefined)?.name || n.id }));
+  const fsOptions = nodes
+    .filter((n) => n.type === "fs")
+    .map((n) => ({ id: n.id, name: (n.data as NodeData | undefined)?.name || n.id }));
 
   return (
     <div className="editor">
@@ -79,10 +84,11 @@ export default function NodeEditor() {
           </div>
 
           {node.type === "llm" && (
-            <LLMPanel node={node} draft={draft} onPatch={(p) => update(p)} mcpOptions={mcpOptions} />
+            <LLMPanel node={node} draft={draft} onPatch={(p) => update(p)} mcpOptions={mcpOptions} fsOptions={fsOptions} />
           )}
           {node.type === "entry" && <EntryPanel draft={draft} onPatch={update} />}
           {node.type === "mcp" && <MCPPanel draft={draft} onPatch={update} />}
+          {node.type === "fs" && <FSPanel draft={draft as FSData} onPatch={update} />}
           {node.type === "switch" && <SwitchPanel draft={draft} onPatch={update} />}
           {node.type === "end" && <EndPanel draft={draft} onPatch={update} />}
         </>
