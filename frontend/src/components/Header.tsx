@@ -13,6 +13,8 @@ export default function Header({
 }) {
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKeyFor = useSettingsStore((s) => s.setApiKeyFor);
+  const travilyApiKey = useSettingsStore((s) => s.travilyApiKey ?? "");
+  const setTravilyApiKey = useSettingsStore((s) => s.setTravilyApiKey);
   const [providerIds, setProviderIds] = useState<string[]>([]);
   const [keysOpen, setKeysOpen] = useState(false);
   const isBusy = useEngineStore((s) => s.activeRunning.size > 0);
@@ -152,7 +154,7 @@ export default function Header({
               <Button variant="soft">API Keys ▾</Button>
             </Popover.Trigger>
             <Popover.Content maxWidth="360px">
-              <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gap: 12 }}>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>Provider API Keys</div>
                 {providerIds.length === 0 ? (
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>No providers</div>
@@ -170,6 +172,18 @@ export default function Header({
                     </div>
                   ))
                 )}
+                <hr className="divider" />
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>Tool API Keys</div>
+                <div className="field">
+                  <span id={`api-key-label-tavily`}>Tavily</span>
+                  <TextField.Root
+                    type="password"
+                    placeholder={`Tavily API Key`}
+                    value={travilyApiKey}
+                    aria-labelledby={`api-key-label-tavily`}
+                    onChange={(e) => setTravilyApiKey((e.target as HTMLInputElement).value)}
+                  />
+                </div>
               </div>
             </Popover.Content>
           </Popover.Root>

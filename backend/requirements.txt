@@ -6,5 +6,7 @@ langchain-core>=1.2,<2
 langchain-openai>=1.0.0
 langchain-anthropic>=1.0.0
 langchain-deepseek>=1.0.0
+langchain-tavily
+tavily-python>=0.3.7
 jsonschema==4.23.0
 langchain-mcp-adapters

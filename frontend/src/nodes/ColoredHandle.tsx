@@ -22,11 +22,12 @@ export type ColoredHandleProps = {
 };
 
 function computeColors(required: boolean, holding: boolean, trigger: boolean) {
-  const r = required ? 255 : 0;
+  const r = required ? 200 : 0;
   // Tone down green channel to reduce visual brightness
-  const g = holding ? 170 : 0;
-  const b = trigger ? 255 : 0;
-  const border = `rgb(${r}, ${g}, ${b})`;
+  const g = holding ? 150 : 0;
+  const b = trigger ? 200 : 0;
+  const border =
+    required && holding && trigger ? "white" : `rgb(${r}, ${g}, ${b})`;
   return { border };
 }
 

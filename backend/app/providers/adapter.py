@@ -11,6 +11,7 @@ from ..utils.schema import (
     enforce_required_all_properties_deep,
 )
 from .mcp import abuild_mcp_tools
+from .web_tools import maybe_build_tavily_tool
 
 
 def provider_catalog() -> Dict[str, Dict[str, Any]]:
@@ -49,13 +50,25 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
     max_tokens: Optional[int] = payload.get("max_tokens")
     response_schema = payload.get("response_schema")
 
-    lc, meta_provider = _create_chat_model(provider, model, api_key, temperature, max_tokens, response_schema)
+    # If any tools are planned (MCP or Tavily), avoid OpenAI strict response_format
+    extra = payload.get("extra") or {}
+    mcp_cfg = payload.get("mcp") or {}
+    tools_planned = bool(mcp_cfg.get("servers")) or bool(extra.get("web_search"))
+
+    lc, meta_provider = _create_chat_model(
+        provider,
+        model,
+        api_key,
+        temperature,
+        max_tokens,
+        response_schema,
+        tools_planned,
+    )
 
     cb = BufferingHandler()
     messages = _to_lc_messages(payload.get("messages", []))
 
     # Emulate JSON modes for providers lacking native support
-    extra = payload.get("extra") or {}
     emulate_json_only = bool(extra.get("json_mode"))
     if provider == "deepseek":
         # If a response schema is provided, prepend a strict JSON instruction with the schema
@@ -83,6 +96,14 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # Bind MCP tools if provided
     tools = await abuild_mcp_tools(payload.get("mcp"))
+    # Optionally add Tavily search tool when requested
+    try:
+        t_tool = await maybe_build_tavily_tool(payload)
+        if t_tool:
+            tools = (tools or []) + t_tool
+    except RuntimeError as e:
+        # Bubble up to main for nicer HTTP mapping
+        raise e
     if tools:
         try:
             lc = lc.bind_tools(tools)
@@ -98,8 +119,8 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # Anthropic structured outputs via tool binding
     # If MCP is configured, do NOT force the synthetic output tool — let the model plan tools first.
-    has_mcp = bool(payload.get("mcp", {}).get("servers"))
-    if provider == "anthropic" and response_schema and not has_mcp:
+    has_any_tools = bool(payload.get("mcp", {}).get("servers")) or bool(extra.get("web_search"))
+    if provider == "anthropic" and response_schema and not has_any_tools:
         try:
             schema_obj = enforce_no_additional_properties(response_schema)
             tool = {
@@ -170,7 +191,7 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
             res = await lc.ainvoke(messages, config={"callbacks": [cb]})
 
     # Finalize into structured output when requested (post-tool phase)
-    if provider == "anthropic" and response_schema:
+    if provider in ("anthropic", "openai", "google") and response_schema:
         try:
             schema_obj = enforce_no_additional_properties(response_schema)
             tool = {
@@ -188,6 +209,34 @@ async def lc_invoke_generic(payload: Dict[str, Any]) -> Dict[str, Any]:
                 return _normalize_response(res2, meta_provider, model, args, logs=cb.logs)
         except Exception:
             # If finalization fails, fall back to best-effort parse below
+            pass
+
+    # Generic finalization fallback: attempt to coerce to schema via a conversion prompt
+    if response_schema:
+        try:
+            import json as _json
+            # Try to parse existing content first
+            txt0 = getattr(res, "content", "")
+            if isinstance(txt0, str):
+                try:
+                    candidate = _json.loads(txt0.strip().strip("`"))
+                    return _normalize_response(res, meta_provider, model, candidate, logs=cb.logs)
+                except Exception:
+                    pass
+
+            from langchain_core.messages import HumanMessage
+            schema_obj = enforce_no_additional_properties(response_schema)
+            prompt = (
+                "Convert the previous answer into a single JSON object that strictly conforms to this JSON Schema. "
+                "Return ONLY the JSON with no commentary or code fences.\n\nSchema: "
+                + _json.dumps(schema_obj)
+            )
+            res3 = await lc.ainvoke(messages + [res, HumanMessage(prompt)])
+            txt = getattr(res3, "content", "")
+            candidate = _json.loads(str(txt).strip().strip("`"))
+            return _normalize_response(res3, meta_provider, model, candidate, logs=cb.logs)
+        except Exception:
+            # Let the caller validate and raise if mismatched
             pass
 
     content = getattr(res, "content", "")
@@ -283,6 +332,7 @@ def _create_chat_model(
     temperature: Optional[float],
     max_tokens: Optional[int],
     response_schema: Optional[Dict[str, Any]],
+    tools_planned: bool,
 ):
     params: Dict[str, Any] = {"model": model}
     # Only include temperature if the model supports it
@@ -296,7 +346,7 @@ def _create_chat_model(
     if provider == "openai":
         if not _is_openai_available():
             raise RuntimeError("langchain-openai not installed")
-        if response_schema:
+        if response_schema and not tools_planned:
             # OpenAI strict mode requires nested object schemas to explicitly set additionalProperties=false.
             # We recursively enforce that only when the field is absent.
             strict_schema = enforce_no_additional_properties_deep(response_schema)

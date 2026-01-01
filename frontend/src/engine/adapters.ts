@@ -2,7 +2,7 @@ import type { Node } from "reactflow";
 import { useGraphUI } from "../graph/uiStore";
 import type { LLMData, NodeData } from "../types";
 import { getBackendClient } from "./backendClient";
-import { getApiKey } from "./settings";
+import { getApiKey, useSettingsStore } from "./settings";
 import { useEngineStore } from "./store";
 
 export type EvalResult = { output: unknown };
@@ -71,6 +71,7 @@ export async function evalLLM(
     max_tokens: typeof data.maxTokens === "number" ? data.maxTokens : null,
     retries: 2,
     mcp: { servers: mcpServerObjects },
+    extra: { web_search: Boolean((data as LLMData).webSearch) },
   } as unknown as import("./__generated__/backend").components["schemas"]["InvokeRequest"];
   // response_schema assigned via body initializer when provided
   try {
@@ -78,6 +79,9 @@ export async function evalLLM(
       body,
       headers: {
         "x-provider-api-key": getApiKey(String(data.provider)) || "",
+        ...(Boolean((data as LLMData).webSearch)
+          ? { "x-tavily-api-key": useSettingsStore.getState().travilyApiKey || "" }
+          : {}),
       },
     });
     if (res.error) {

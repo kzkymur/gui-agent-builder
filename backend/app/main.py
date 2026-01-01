@@ -147,6 +147,7 @@ async def get_models(provider: str):
 async def llm_invoke(
     body: InvokeRequest,
     x_provider_api_key: Optional[str] = Header(default=None, convert_underscores=True),
+    x_tavily_api_key: Optional[str] = Header(default=None, convert_underscores=True),
 ):
     entry = REGISTRY.get(body.provider)
     if not entry:
@@ -163,6 +164,25 @@ async def llm_invoke(
     # Attach api key for adapters that need it
     if x_provider_api_key:
         payload["api_key"] = x_provider_api_key
+
+    # Optional Tavily web search tool support
+    try:
+        extra = body.extra or {}
+        if bool(extra.get("web_search")):
+            if not x_tavily_api_key:
+                raise HTTPException(status_code=400, detail={
+                    "error": {
+                        "code": "tavily_api_key_missing",
+                        "message": "Web search requested but Tavily API key is missing",
+                        "details": None,
+                    }
+                })
+            payload["tavily_api_key"] = x_tavily_api_key
+    except HTTPException:
+        raise
+    except Exception:
+        # Ignore malformed extras silently — feature is opt-in
+        pass
 
     attempts = (body.retries or 0) + 1
     last_exc: Optional[Exception] = None
@@ -208,6 +228,15 @@ async def llm_invoke(
                 raise HTTPException(status_code=501, detail={
                     "error": {
                         "code": "mcp_adapter_missing",
+                        "message": msg,
+                        "details": {"type": exc.__class__.__name__},
+                    }
+                })
+            # Tavily adapter missing: surface clear 501
+            if isinstance(exc, RuntimeError) and ("langchain-tavily" in msg or "tavily" in msg.lower()):
+                raise HTTPException(status_code=501, detail={
+                    "error": {
+                        "code": "tavily_adapter_missing",
                         "message": msg,
                         "details": {"type": exc.__class__.__name__},
                     }

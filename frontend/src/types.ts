@@ -26,6 +26,8 @@ export type LLMData = {
   provider: string;
   model: string;
   system?: string;
+  // Enable model tool use for web search via Tavily
+  webSearch?: boolean;
   // LLM generation controls (optional)
   temperature?: number | null;
   maxTokens?: number | null;

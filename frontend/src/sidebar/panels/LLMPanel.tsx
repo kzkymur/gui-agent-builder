@@ -378,8 +378,20 @@ export default function LLMPanel({
       </details>
 
       <div className="field">
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <Checkbox
+            checked={Boolean((draft as LLMData).webSearch)}
+            onCheckedChange={(checked) => onPatch({ webSearch: Boolean(checked) })}
+            disabled={isBusy}
+          />
+          <span>Web Search (Tavily)</span>
+        </label>
+        <div className="help">When enabled, the model can call a web search tool.</div>
+      </div>
+
+      <div className="field">
         <Text as="span" weight="medium">
-          MCP Servers
+          Tools
         </Text>
         {mcpOptions.length === 0 ? (
           <div className="help">No MCP nodes available in the graph.</div>
