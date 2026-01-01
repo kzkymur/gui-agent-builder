@@ -11,3 +11,8 @@
 - Avoid speculative abstractions and meta-frameworks. YAGNI applies: simplest working change wins.
 - Keep comments practical (why over what). No narrative summaries of obvious code.
 - New files require justification in the PR description: purpose, owner, and maintenance plan.
+
+## Architecture Roles (For Coding Agents)
+
+- Frontend = LLM orchestration. The FE owns prompt/message assembly, node graph execution, and sending normalized invoke payloads (provider, model, messages, response_schema, controls). FE may pass user-selected tool toggles and credentials as headers/fields but does not execute tools.
+- Backend = Tool orchestration. The BE owns binding and execution of tools (e.g., MCP, Tavily) and provider-specific adapters. The BE decides when/how tools are exposed to models and returns a normalized result. Keep FE stateless about tool internals and keep BE stateless about graph state.
